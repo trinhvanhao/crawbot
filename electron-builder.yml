@@ -28,6 +28,7 @@ extraResources:
 
 afterPack: ./scripts/after-pack.cjs
 
+npmRebuild: false
 asar: true
 asarUnpack:
   - "**/*.node"
