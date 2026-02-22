@@ -1,6 +1,6 @@
 {
     "title": "Cài đặt",
-    "subtitle": "Tùy chỉnh trải nghiệm ClawDesk của bạn",
+    "subtitle": "Tùy chỉnh trải nghiệm CrawBot của bạn",
     "appearance": {
         "title": "Giao diện",
         "description": "Tùy chỉnh giao diện hiển thị",
@@ -18,7 +18,7 @@
         "notRequired": "Không bắt buộc",
         "empty": {
             "title": "Chưa có nhà cung cấp nào được cấu hình",
-            "desc": "Thêm nhà cung cấp AI để bắt đầu sử dụng ClawDesk",
+            "desc": "Thêm nhà cung cấp AI để bắt đầu sử dụng CrawBot",
             "cta": "Thêm nhà cung cấp đầu tiên"
         },
         "dialog": {
@@ -88,11 +88,11 @@
         "appLogs": "Nhật ký ứng dụng",
         "openFolder": "Mở thư mục",
         "autoStart": "Tự động khởi động Gateway",
-        "autoStartDesc": "Khởi động Gateway khi ClawDesk được mở"
+        "autoStartDesc": "Khởi động Gateway khi CrawBot được mở"
     },
     "updates": {
         "title": "Cập nhật",
-        "description": "Giữ ClawDesk luôn cập nhật",
+        "description": "Giữ CrawBot luôn cập nhật",
         "autoCheck": "Tự động kiểm tra cập nhật",
         "autoCheckDesc": "Kiểm tra cập nhật khi khởi động",
         "autoDownload": "Tự động tải cập nhật",
@@ -149,7 +149,7 @@
     },
     "about": {
         "title": "Giới thiệu",
-        "appName": "ClawDesk",
+        "appName": "CrawBot",
         "tagline": "Trợ lý AI đồ họa",
         "basedOn": "Dựa trên OpenClaw",
         "version": "Phiên bản {{version}}",

@@ -1,4 +1,4 @@
-# ClawDesk CI Workflow
+# CrawBot CI Workflow
 # Runs on pull requests (main/develop) 
 name: Check and Build
 

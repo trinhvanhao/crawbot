@@ -129,9 +129,9 @@ export function saveProviderKeyToOpenClaw(
 }
 
 /**
- * Map ClawDesk provider type → all profile ID prefixes used in auth-profiles.json.
+ * Map CrawBot provider type → all profile ID prefixes used in auth-profiles.json.
  * Google OAuth uses "google-gemini-cli" as the provider name in OpenClaw,
- * which differs from the ClawDesk type "google".
+ * which differs from the CrawBot type "google".
  */
 const PROVIDER_PROFILE_PREFIXES: Record<string, string[]> = {
   google: ['google', 'google-gemini-cli'],

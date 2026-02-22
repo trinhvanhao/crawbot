@@ -1,6 +1,6 @@
 {
     "title": "Settings",
-    "subtitle": "Configure your ClawDesk experience",
+    "subtitle": "Configure your CrawBot experience",
     "appearance": {
         "title": "Appearance",
         "description": "Customize the look and feel",
@@ -18,7 +18,7 @@
         "notRequired": "Not required",
         "empty": {
             "title": "No providers configured",
-            "desc": "Add an AI provider to start using ClawDesk",
+            "desc": "Add an AI provider to start using CrawBot",
             "cta": "Add Your First Provider"
         },
         "dialog": {
@@ -88,11 +88,11 @@
         "appLogs": "Application Logs",
         "openFolder": "Open Folder",
         "autoStart": "Auto-start Gateway",
-        "autoStartDesc": "Start Gateway when ClawDesk launches"
+        "autoStartDesc": "Start Gateway when CrawBot launches"
     },
     "updates": {
         "title": "Updates",
-        "description": "Keep ClawDesk up to date",
+        "description": "Keep CrawBot up to date",
         "autoCheck": "Auto-check for updates",
         "autoCheckDesc": "Check for updates on startup",
         "autoDownload": "Auto-download updates",
@@ -149,7 +149,7 @@
     },
     "about": {
         "title": "About",
-        "appName": "ClawDesk",
+        "appName": "CrawBot",
         "tagline": "Graphical AI Assistant",
         "basedOn": "Based on OpenClaw",
         "version": "Version {{version}}",

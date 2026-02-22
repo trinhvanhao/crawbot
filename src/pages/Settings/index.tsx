@@ -554,14 +554,14 @@ export function Settings() {
             <Button
               variant="link"
               className="h-auto p-0"
-              onClick={() => window.electron.openExternal('https://clawdesk.net')}
+              onClick={() => window.electron.openExternal('https://crawbot.net')}
             >
               {t('about.docs')}
             </Button>
             <Button
               variant="link"
               className="h-auto p-0"
-              onClick={() => window.electron.openExternal('https://github.com/Neurons-ai/ClawDesk')}
+              onClick={() => window.electron.openExternal('https://github.com/Neurons-ai/CrawBot')}
             >
               {t('about.github')}
             </Button>

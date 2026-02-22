@@ -1,4 +1,4 @@
-# ClawDesk Release Workflow
+# CrawBot Release Workflow
 # Builds and publishes releases for macOS, Windows, and Linux
 
 name: Release
@@ -170,28 +170,28 @@ jobs:
           make_latest: ${{ !(contains(github.ref, 'alpha') || contains(github.ref, 'beta')) }}
           generate_release_notes: true
           body: |
-            ## 🚀 ClawDesk ${{ github.ref_name }}
+            ## 🚀 CrawBot ${{ github.ref_name }}
             
-            ClawDesk - Graphical AI Assistant based on OpenClaw
+            CrawBot - Graphical AI Assistant based on OpenClaw
             
             ### 📦 Downloads
             
             Please select the appropriate installer for your operating system and architecture:
             
             #### macOS
-            - **Apple Silicon (M1/M2/M3/M4)**: `ClawDesk-*-mac-arm64.dmg`
-            - **Intel (x64)**: `ClawDesk-*-mac-x64.dmg`
+            - **Apple Silicon (M1/M2/M3/M4)**: `CrawBot-*-mac-arm64.dmg`
+            - **Intel (x64)**: `CrawBot-*-mac-x64.dmg`
             
             #### Windows
-            - **Installer (x64)**: `ClawDesk-*-win-x64.exe`
-            - **Installer (ARM64)**: `ClawDesk-*-win-arm64.exe`
+            - **Installer (x64)**: `CrawBot-*-win-x64.exe`
+            - **Installer (ARM64)**: `CrawBot-*-win-arm64.exe`
             
             #### Linux
-            - **AppImage (x64)**: `ClawDesk-*-linux-x86_64.AppImage` (Universal format, recommended)
-            - **AppImage (ARM64)**: `ClawDesk-*-linux-arm64.AppImage`
-            - **Debian/Ubuntu (x64)**: `ClawDesk-*-linux-amd64.deb`
-            - **Debian/Ubuntu (ARM64)**: `ClawDesk-*-linux-arm64.deb`
-            - **RPM (x64)**: `ClawDesk-*-linux-x86_64.rpm`
+            - **AppImage (x64)**: `CrawBot-*-linux-x86_64.AppImage` (Universal format, recommended)
+            - **AppImage (ARM64)**: `CrawBot-*-linux-arm64.AppImage`
+            - **Debian/Ubuntu (x64)**: `CrawBot-*-linux-amd64.deb`
+            - **Debian/Ubuntu (ARM64)**: `CrawBot-*-linux-arm64.deb`
+            - **RPM (x64)**: `CrawBot-*-linux-x86_64.rpm`
             
             ### 📝 Release Notes
             
@@ -201,7 +201,7 @@ jobs:
             
             - **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences → Security & Privacy to allow the app to run
             - **Windows**: SmartScreen may block the app. Click "More info" → "Run anyway" to proceed
-            - **Linux**: AppImage requires executable permission: `chmod +x ClawDesk-*.AppImage`
+            - **Linux**: AppImage requires executable permission: `chmod +x CrawBot-*.AppImage`
             
             ---
             

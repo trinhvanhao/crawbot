@@ -87,7 +87,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetSettings: () => set(defaultSettings),
     }),
     {
-      name: 'clawdesk-settings',
+      name: 'crawbot-settings',
     }
   )
 );

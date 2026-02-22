@@ -176,13 +176,13 @@ export function createMenu(): void {
         {
           label: 'Documentation',
           click: async () => {
-            await shell.openExternal('https://clawdesk.net');
+            await shell.openExternal('https://crawbot.net');
           },
         },
         {
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/Neurons-ai/ClawDesk/issues');
+            await shell.openExternal('https://github.com/Neurons-ai/CrawBot/issues');
           },
         },
         { type: 'separator' },

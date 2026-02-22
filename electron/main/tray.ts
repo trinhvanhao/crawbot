@@ -57,12 +57,12 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   tray = new Tray(icon);
   
   // Set tooltip
-  tray.setToolTip('ClawDesk - AI Assistant');
+  tray.setToolTip('CrawBot - AI Assistant');
   
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show ClawDesk',
+      label: 'Show CrawBot',
       click: () => {
         mainWindow.show();
         mainWindow.focus();
@@ -123,7 +123,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       type: 'separator',
     },
     {
-      label: 'Quit ClawDesk',
+      label: 'Quit CrawBot',
       click: () => {
         app.quit();
       },
@@ -156,7 +156,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
  */
 export function updateTrayStatus(status: string): void {
   if (tray) {
-    tray.setToolTip(`ClawDesk - ${status}`);
+    tray.setToolTip(`CrawBot - ${status}`);
   }
 }
 

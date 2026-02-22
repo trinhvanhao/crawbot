@@ -7,11 +7,11 @@
  * Port configuration
  */
 export const PORTS = {
-  /** ClawDesk GUI development server port */
-  CLAWDESK_DEV: 5173,
+  /** CrawBot GUI development server port */
+  CRAWBOT_DEV: 5173,
 
-  /** ClawDesk GUI production port (for reference) */
-  CLAWDESK_GUI: 23333,
+  /** CrawBot GUI production port (for reference) */
+  CRAWBOT_GUI: 23333,
   
   /** OpenClaw Gateway port */
   OPENCLAW_GATEWAY: 18789,
@@ -21,7 +21,7 @@ export const PORTS = {
  * Get port from environment or default
  */
 export function getPort(key: keyof typeof PORTS): number {
-  const envKey = `CLAWDESK_PORT_${key}`;
+  const envKey = `CRAWBOT_PORT_${key}`;
   const envValue = process.env[envKey];
   return envValue ? parseInt(envValue, 10) : PORTS[key];
 }
@@ -33,11 +33,11 @@ export const APP_PATHS = {
   /** OpenClaw configuration directory */
   OPENCLAW_CONFIG: '~/.openclaw',
   
-  /** ClawDesk configuration directory */
-  CLAWDESK_CONFIG: '~/.clawdesk',
+  /** CrawBot configuration directory */
+  CRAWBOT_CONFIG: '~/.crawbot',
 
   /** Log files directory */
-  LOGS: '~/.clawdesk/logs',
+  LOGS: '~/.crawbot/logs',
 } as const;
 
 /**

@@ -80,7 +80,7 @@ function waitForLocalCallback(
         res.end(
           '<!doctype html><html><body>' +
           '<h2>Authentication successful!</h2>' +
-          '<p>You can close this window and return to ClawDesk.</p>' +
+          '<p>You can close this window and return to CrawBot.</p>' +
           '</body></html>'
         );
         finish(undefined, code);

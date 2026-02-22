@@ -1,7 +1,7 @@
 {
     "steps": {
         "welcome": {
-            "title": "Chào mừng đến với ClawDesk",
+            "title": "Chào mừng đến với CrawBot",
             "description": "Trợ lý AI của bạn đã sẵn sàng để cấu hình"
         },
         "runtime": {
@@ -22,12 +22,12 @@
         },
         "complete": {
             "title": "Hoàn tất!",
-            "description": "ClawDesk đã sẵn sàng sử dụng"
+            "description": "CrawBot đã sẵn sàng sử dụng"
         }
     },
     "welcome": {
-        "title": "Chào mừng đến với ClawDesk",
-        "description": "ClawDesk là giao diện đồ họa cho OpenClaw, giúp bạn dễ dàng sử dụng trợ lý AI trên các nền tảng nhắn tin yêu thích.",
+        "title": "Chào mừng đến với CrawBot",
+        "description": "CrawBot là giao diện đồ họa cho OpenClaw, giúp bạn dễ dàng sử dụng trợ lý AI trên các nền tảng nhắn tin yêu thích.",
         "features": {
             "noCommand": "Không cần dòng lệnh",
             "modernUI": "Giao diện hiện đại, đẹp mắt",
@@ -117,7 +117,7 @@
     },
     "complete": {
         "title": "Thiết lập hoàn tất!",
-        "subtitle": "ClawDesk đã được cấu hình và sẵn sàng sử dụng. Bạn có thể bắt đầu trò chuyện với trợ lý AI ngay bây giờ.",
+        "subtitle": "CrawBot đã được cấu hình và sẵn sàng sử dụng. Bạn có thể bắt đầu trò chuyện với trợ lý AI ngay bây giờ.",
         "provider": "Nhà cung cấp AI",
         "components": "Thành phần",
         "gateway": "Gateway",

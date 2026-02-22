@@ -13,7 +13,7 @@ let settingsStoreInstance: any = null;
  * Generate a random token for gateway authentication
  */
 function generateToken(): string {
-  return `clawdesk-${randomBytes(16).toString('hex')}`;
+  return `crawbot-${randomBytes(16).toString('hex')}`;
 }
 
 /**

@@ -2,7 +2,7 @@
     "gatewayNotRunning": "Gateway chưa chạy",
     "gatewayRequired": "OpenClaw Gateway cần được chạy để sử dụng trò chuyện. Nó sẽ tự động khởi động, hoặc bạn có thể khởi động từ Cài đặt.",
     "welcome": {
-        "title": "Trò chuyện ClawDesk",
+        "title": "Trò chuyện CrawBot",
         "subtitle": "Trợ lý AI của bạn đã sẵn sàng. Bắt đầu cuộc trò chuyện bên dưới.",
         "askQuestions": "Đặt câu hỏi",
         "askQuestionsDesc": "Nhận câu trả lời về mọi chủ đề",

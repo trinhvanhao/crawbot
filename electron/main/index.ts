@@ -104,7 +104,7 @@ function createWindow(): BrowserWindow {
 async function initialize(): Promise<void> {
   // Initialize logger first
   logger.init();
-  logger.info('=== ClawDesk Application Starting ===');
+  logger.info('=== CrawBot Application Starting ===');
   logger.debug(
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}`
   );
@@ -125,8 +125,8 @@ async function initialize(): Promise<void> {
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://openrouter.ai/*'] },
     (details, callback) => {
-      details.requestHeaders['HTTP-Referer'] = 'https://clawdesk.app';
-      details.requestHeaders['X-Title'] = 'ClawDesk';
+      details.requestHeaders['HTTP-Referer'] = 'https://crawbot.app';
+      details.requestHeaders['X-Title'] = 'CrawBot';
       callback({ requestHeaders: details.requestHeaders });
     },
   );
@@ -189,8 +189,8 @@ async function initialize(): Promise<void> {
 }
 
 // Force consistent app name so dev and prod use the same userData path
-// (package.json name="clawdesk" vs electron-builder productName="ClawDesk")
-app.setName('ClawDesk');
+// (package.json name="crawbot" vs electron-builder productName="CrawBot")
+app.setName('CrawBot');
 
 // Application lifecycle
 app.whenReady().then(() => {

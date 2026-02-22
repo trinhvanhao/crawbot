@@ -137,7 +137,7 @@ export class GatewayManager extends EventEmitter {
 
   private initDeviceIdentity(): void {
     try {
-      const identityPath = path.join(app.getPath('userData'), 'clawdesk-device-identity.json');
+      const identityPath = path.join(app.getPath('userData'), 'crawbot-device-identity.json');
       this.deviceIdentity = loadOrCreateDeviceIdentity(identityPath);
       logger.debug(`Device identity loaded (deviceId=${this.deviceIdentity.deviceId})`);
     } catch (err) {
@@ -872,7 +872,7 @@ export class GatewayManager extends EventEmitter {
             maxProtocol: 3,
             client: {
               id: clientId,
-              displayName: 'ClawDesk',
+              displayName: 'CrawBot',
               version: '0.1.0',
               platform: process.platform,
               mode: clientMode,

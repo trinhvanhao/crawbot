@@ -33,21 +33,21 @@ export function getOpenClawSkillsDir(): string {
 }
 
 /**
- * Get ClawDesk config directory
+ * Get CrawBot config directory
  */
-export function getClawDeskConfigDir(): string {
-  return join(homedir(), '.clawdesk');
+export function getCrawBotConfigDir(): string {
+  return join(homedir(), '.crawbot');
 }
 
 /**
- * Get ClawDesk logs directory
+ * Get CrawBot logs directory
  */
 export function getLogsDir(): string {
   return join(app.getPath('userData'), 'logs');
 }
 
 /**
- * Get ClawDesk data directory
+ * Get CrawBot data directory
  */
 export function getDataDir(): string {
   return app.getPath('userData');

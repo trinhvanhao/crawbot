@@ -1,5 +1,5 @@
 {
-    "name": "clawdesk",
+    "name": "crawbot",
     "version": "2026.2.19",
     "pnpm": {
         "onlyBuiltDependencies": [
@@ -11,7 +11,7 @@
             "sharp"
         ]
     },
-    "description": "ClawDesk - Graphical AI Assistant based on OpenClaw",
+    "description": "CrawBot - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
     "author": "Neurons AI Team",
     "license": "MIT",

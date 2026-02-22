@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Post-removal script for ClawDesk on Linux
+# Post-removal script for CrawBot on Linux
 
 set -e
 
 # Remove symbolic link
-rm -f /usr/local/bin/clawdesk 2>/dev/null || true
+rm -f /usr/local/bin/crawbot 2>/dev/null || true
 
 # Update desktop database
 if command -v update-desktop-database &> /dev/null; then
@@ -17,4 +17,4 @@ if command -v gtk-update-icon-cache &> /dev/null; then
     gtk-update-icon-cache -q /usr/share/icons/hicolor || true
 fi
 
-echo "ClawDesk has been removed."
+echo "CrawBot has been removed."

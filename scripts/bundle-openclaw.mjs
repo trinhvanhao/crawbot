@@ -207,7 +207,7 @@ if (!entryExists || !distExists) {
   process.exit(1);
 }
 
-// 7. Sync ClawDesk version to match bundled OpenClaw version
+// 7. Sync CrawBot version to match bundled OpenClaw version
 const openclawPkg = JSON.parse(fs.readFileSync(path.join(OUTPUT, 'package.json'), 'utf-8'));
 const rootPkgPath = path.join(ROOT, 'package.json');
 const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
@@ -215,7 +215,7 @@ const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
 if (openclawPkg.version && rootPkg.version !== openclawPkg.version) {
   rootPkg.version = openclawPkg.version;
   fs.writeFileSync(rootPkgPath, JSON.stringify(rootPkg, null, 4) + '\n');
-  echo`🔄 Synced ClawDesk version to ${openclawPkg.version} (matching openclaw)`;
+  echo`🔄 Synced CrawBot version to ${openclawPkg.version} (matching openclaw)`;
 } else {
-  echo`✅ ClawDesk version already matches openclaw (${rootPkg.version})`;
+  echo`✅ CrawBot version already matches openclaw (${rootPkg.version})`;
 }
