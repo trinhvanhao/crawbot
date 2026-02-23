@@ -11,6 +11,7 @@
     },
     "noLogs": "(Chưa có nhật ký)",
     "toolbar": {
+        "agent": "Chọn agent",
         "newSession": "Phiên mới",
         "refresh": "Làm mới trò chuyện",
         "showThinking": "Hiện suy nghĩ",

@@ -326,7 +326,7 @@ function ProviderCard({
       const defaultModel = PROVIDER_TYPE_INFO.find((ti) => ti.id === provider.type)?.defaultModelId;
       setModelId(provider.model || defaultModel || '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isEditing, provider.baseUrl, provider.model, provider.type]);
 
   const handleSaveEdits = async () => {

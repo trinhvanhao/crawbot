@@ -1,21 +1,24 @@
 /**
  * Chat Toolbar
- * Session selector, model selector, new session, refresh, and thinking toggle.
+ * Agent selector, session selector, model selector, new session, refresh, and thinking toggle.
  * Rendered in the Header when on the Chat page.
  */
-import { useMemo } from 'react';
-import { RefreshCw, Brain, ChevronDown, Plus, Cpu } from 'lucide-react';
+import { useMemo, useEffect } from 'react';
+import { RefreshCw, Brain, ChevronDown, Plus, Cpu, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore } from '@/stores/chat';
 import { useModelsStore } from '@/stores/models';
+import { useAgentsStore } from '@/stores/agents';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 export function ChatToolbar() {
   const sessions = useChatStore((s) => s.sessions);
   const currentSessionKey = useChatStore((s) => s.currentSessionKey);
+  const selectedAgentId = useChatStore((s) => s.selectedAgentId);
   const switchSession = useChatStore((s) => s.switchSession);
+  const switchAgent = useChatStore((s) => s.switchAgent);
   const newSession = useChatStore((s) => s.newSession);
   const refresh = useChatStore((s) => s.refresh);
   const loading = useChatStore((s) => s.loading);
@@ -26,7 +29,32 @@ export function ChatToolbar() {
   const selectedModel = useModelsStore((s) => s.selectedModel);
   const setSelectedModel = useModelsStore((s) => s.setSelectedModel);
 
+  const agents = useAgentsStore((s) => s.agents);
+  const fetchAgents = useAgentsStore((s) => s.fetchAgents);
+
   const { t } = useTranslation('chat');
+
+  // Load agents list on mount
+  useEffect(() => {
+    if (agents.length === 0) fetchAgents();
+  }, [agents.length, fetchAgents]);
+
+  // Filter sessions for the selected agent
+  const agentPrefix = `agent:${selectedAgentId}:`;
+  const agentSessions = useMemo(
+    () => sessions.filter((s) => s.key.startsWith(agentPrefix)),
+    [sessions, agentPrefix],
+  );
+
+  // Session display name: strip the agent prefix for readability
+  const sessionDisplayName = (key: string) => {
+    if (key.startsWith(agentPrefix)) return key.slice(agentPrefix.length);
+    return key;
+  };
+
+  const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    switchAgent(e.target.value);
+  };
 
   const handleSessionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     switchSession(e.target.value);
@@ -52,6 +80,36 @@ export function ChatToolbar() {
 
   return (
     <div className="flex items-center gap-2">
+      {/* Agent Selector */}
+      {agents.length > 1 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="relative">
+              <Bot className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <select
+                value={selectedAgentId}
+                onChange={handleAgentChange}
+                className={cn(
+                  'appearance-none rounded-md border border-border bg-background pl-7 pr-7 py-1.5',
+                  'text-sm text-foreground cursor-pointer max-w-[140px]',
+                  'focus:outline-none focus:ring-2 focus:ring-ring',
+                )}
+              >
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.identity?.emoji ? `${agent.identity.emoji} ` : ''}{agent.name || agent.id}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('toolbar.agent')}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
       {/* Session Selector */}
       <div className="relative">
         <select
@@ -63,15 +121,15 @@ export function ChatToolbar() {
             'focus:outline-none focus:ring-2 focus:ring-ring',
           )}
         >
-          {/* Render all sessions; if currentSessionKey is not in the list, add it */}
-          {!sessions.some((s) => s.key === currentSessionKey) && (
+          {/* Show current session if not in filtered list */}
+          {!agentSessions.some((s) => s.key === currentSessionKey) && (
             <option value={currentSessionKey}>
-              {currentSessionKey}
+              {sessionDisplayName(currentSessionKey)}
             </option>
           )}
-          {sessions.map((s) => (
+          {agentSessions.map((s) => (
             <option key={s.key} value={s.key}>
-              {s.key}
+              {sessionDisplayName(s.key)}
             </option>
           ))}
         </select>

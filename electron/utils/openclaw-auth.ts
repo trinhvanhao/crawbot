@@ -292,12 +292,37 @@ export function setOpenClawDefaultModel(provider: string, modelOverride?: string
   // model must be an object: { primary: "provider/model", fallbacks?: [] }
   const agents = (config.agents || {}) as Record<string, unknown>;
   const defaults = (agents.defaults || {}) as Record<string, unknown>;
+  const mainWorkspace = join(homedir(), '.openclaw', 'workspace-main');
   defaults.model = { primary: model };
+  defaults.workspace = mainWorkspace;
   // Ensure bootstrap files (BOOTSTRAP.md etc.) are created in the workspace.
-  // OpenClaw's --dev mode sets skipBootstrap: true by default; override it.
   defaults.skipBootstrap = false;
   agents.defaults = defaults;
+
+  // Ensure the default "main" agent exists in agents.list
+  const agentsList = (Array.isArray(agents.list) ? agents.list : []) as Array<Record<string, unknown>>;
+  if (!agentsList.some((a) => a.id === 'main')) {
+    agentsList.push({
+      id: 'main',
+      name: 'main',
+      default: true,
+      workspace: mainWorkspace,
+      identity: { emoji: '🤖' },
+      subagents: { allowAgents: ['*'] },
+    });
+  }
+  // Ensure all agents have subagents.allowAgents set
+  for (const a of agentsList) {
+    if (!a.subagents) a.subagents = { allowAgents: ['*'] };
+  }
+  agents.list = agentsList;
   config.agents = agents;
+
+  // Enable agent-to-agent communication and shared session visibility (top-level)
+  const tools = (config.tools || {}) as Record<string, unknown>;
+  tools.agentToAgent = { enabled: true, allow: ['*'] };
+  tools.sessions = { visibility: 'all' };
+  config.tools = tools;
 
   // Configure models.providers for providers that need explicit registration.
   // Built-in providers (anthropic, google) are part of OpenClaw's pi-ai catalog
@@ -407,12 +432,38 @@ export function setOpenClawDefaultModelWithOverride(
     ? model.slice(provider.length + 1)
     : model;
 
+  const mainWorkspace = join(homedir(), '.openclaw', 'workspace-main');
   const agents = (config.agents || {}) as Record<string, unknown>;
   const defaults = (agents.defaults || {}) as Record<string, unknown>;
   defaults.model = { primary: model };
+  defaults.workspace = mainWorkspace;
   defaults.skipBootstrap = false;
   agents.defaults = defaults;
+
+  // Ensure the default "main" agent exists in agents.list
+  const agentsList = (Array.isArray(agents.list) ? agents.list : []) as Array<Record<string, unknown>>;
+  if (!agentsList.some((a) => a.id === 'main')) {
+    agentsList.push({
+      id: 'main',
+      name: 'main',
+      default: true,
+      workspace: mainWorkspace,
+      identity: { emoji: '🤖' },
+      subagents: { allowAgents: ['*'] },
+    });
+  }
+  // Ensure all agents have subagents.allowAgents set
+  for (const a of agentsList) {
+    if (!a.subagents) a.subagents = { allowAgents: ['*'] };
+  }
+  agents.list = agentsList;
   config.agents = agents;
+
+  // Enable agent-to-agent communication and shared session visibility (top-level)
+  const tools = (config.tools || {}) as Record<string, unknown>;
+  tools.agentToAgent = { enabled: true, allow: ['*'] };
+  tools.sessions = { visibility: 'all' };
+  config.tools = tools;
 
   if (override.baseUrl && override.api) {
     const models = (config.models || {}) as Record<string, unknown>;

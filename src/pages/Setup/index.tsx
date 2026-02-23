@@ -32,6 +32,7 @@ import { useGatewayStore } from '@/stores/gateway';
 import { useProviderStore } from '@/stores/providers';
 import { useSettingsStore } from '@/stores/settings';
 import { useTranslation } from 'react-i18next';
+import { useModelsStore } from '@/stores/models';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { toast } from 'sonner';
 import {
@@ -720,6 +721,9 @@ function ProviderContent({
   const [authMethod, setAuthMethod] = useState<'apikey' | 'oauth'>('apikey');
   const [setupToken, setSetupToken] = useState('');
 
+  const allModels = useModelsStore((s) => s.models);
+  const fetchModels = useModelsStore((s) => s.fetchModels);
+
   const { triggerOAuthLogin, pasteSetupToken } = useProviderStore();
 
   // OAuth-only providers (supportsOAuth but no API key) skip the toggle
@@ -824,6 +828,11 @@ function ProviderContent({
     };
   }, [providerMenuOpen]);
 
+  // Fetch models from Gateway
+  useEffect(() => {
+    fetchModels();
+  }, [fetchModels]);
+
   const selectedProviderData = providers.find((p) => p.id === selectedProvider);
   const selectedProviderIconUrl = selectedProviderData
     ? getProviderIconUrl(selectedProviderData.id)
@@ -831,6 +840,20 @@ function ProviderContent({
   const showBaseUrlField = selectedProviderData?.showBaseUrl ?? false;
   const showModelIdField = selectedProviderData?.showModelId ?? false;
   const requiresKey = selectedProviderData?.requiresApiKey ?? false;
+
+  // Models from Gateway for the selected provider
+  const providerModels = useMemo(
+    () => allModels.filter((m) => m.provider === selectedProvider),
+    [allModels, selectedProvider],
+  );
+
+  const modelOptions = useMemo(() => {
+    const result = providerModels.map((m) => ({ id: m.id, name: m.name || m.id }));
+    if (modelId && !result.some((m) => m.id === modelId)) {
+      result.unshift({ id: modelId, name: modelId });
+    }
+    return result;
+  }, [providerModels, modelId]);
 
   const handleValidateAndSave = async () => {
     if (!selectedProvider) return;
@@ -855,12 +878,14 @@ function ProviderContent({
         }
         // Save provider config without API key, set as default
         const providerIdForSave = selectedProvider;
+        const oauthModelId = modelId.trim() || selectedProviderData?.defaultModelId || undefined;
         const saveResult = await window.electron.ipcRenderer.invoke(
           'provider:save',
           {
             id: providerIdForSave,
             name: selectedProviderData?.name || selectedProvider,
             type: selectedProvider,
+            model: oauthModelId,
             enabled: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -891,12 +916,14 @@ function ProviderContent({
         }
         // Save provider config without API key, set as default
         const providerIdForSave = selectedProvider;
+        const oauth2ModelId = modelId.trim() || selectedProviderData?.defaultModelId || undefined;
         const saveResult = await window.electron.ipcRenderer.invoke(
           'provider:save',
           {
             id: providerIdForSave,
             name: selectedProviderData?.name || selectedProvider,
             type: selectedProvider,
+            model: oauth2ModelId,
             enabled: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -937,8 +964,8 @@ function ProviderContent({
       }
 
       const effectiveModelId =
-        selectedProviderData?.defaultModelId ||
         modelId.trim() ||
+        selectedProviderData?.defaultModelId ||
         undefined;
 
       const providerIdForSave =
@@ -1221,28 +1248,6 @@ function ProviderContent({
                 </div>
               )}
 
-              {/* Model ID field (for siliconflow etc.) */}
-              {showModelIdField && (
-                <div className="space-y-2">
-                  <Label htmlFor="modelId">{t('provider.modelId')}</Label>
-                  <Input
-                    id="modelId"
-                    type="text"
-                    placeholder={selectedProviderData?.modelIdPlaceholder || 'e.g. deepseek-ai/DeepSeek-V3'}
-                    value={modelId}
-                    onChange={(e) => {
-                      setModelId(e.target.value);
-                      onConfiguredChange(false);
-                    }}
-                    autoComplete="off"
-                    className="bg-background border-input"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t('provider.modelIdDesc')}
-                  </p>
-                </div>
-              )}
-
               {/* API Key field (hidden for ollama) */}
               {requiresKey && (
                 <div className="space-y-2">
@@ -1272,6 +1277,62 @@ function ProviderContent({
                 </div>
               )}
             </>
+          )}
+
+          {/* Model selector — shown for all providers */}
+          {(showModelIdField || selectedProviderData?.defaultModelId) && (
+            <div className="space-y-2">
+              <Label htmlFor="modelId">
+                {showModelIdField ? t('provider.modelId') : t('provider.defaultModel')}
+              </Label>
+              {showModelIdField ? (
+                <>
+                  <Input
+                    id="modelId"
+                    list={`setup-model-list-${selectedProvider}`}
+                    type="text"
+                    placeholder={selectedProviderData?.modelIdPlaceholder || 'e.g. deepseek-ai/DeepSeek-V3'}
+                    value={modelId}
+                    onChange={(e) => {
+                      setModelId(e.target.value);
+                      onConfiguredChange(false);
+                    }}
+                    autoComplete="off"
+                    className="bg-background border-input"
+                  />
+                  {providerModels.length > 0 && (
+                    <datalist id={`setup-model-list-${selectedProvider}`}>
+                      {providerModels.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                      ))}
+                    </datalist>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {t('provider.modelIdDesc')}
+                  </p>
+                </>
+              ) : (
+                <select
+                  id="modelId"
+                  value={modelId}
+                  onChange={(e) => {
+                    setModelId(e.target.value);
+                    onConfiguredChange(false);
+                  }}
+                  className={cn(
+                    'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm',
+                    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                  )}
+                >
+                  {modelOptions.length === 0 && (
+                    <option value={modelId || ''}>{modelId || 'Loading models...'}</option>
+                  )}
+                  {modelOptions.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
           )}
 
           {/* Validate & Save */}

@@ -1,0 +1,102 @@
+{
+  "title": "Agents",
+  "subtitle": "Quản lý các agent AI OpenClaw",
+  "refresh": "Làm mới",
+  "newAgent": "Agent mới",
+  "noAgents": "Chưa có agent nào",
+  "noAgentsDesc": "Tạo agent đầu tiên để bắt đầu.",
+  "selectAgent": "Chọn một agent để xem chi tiết",
+  "default": "Mặc định",
+  "enabled": "Bật",
+  "disabled": "Tắt",
+  "tabs": {
+    "overview": "Tổng quan",
+    "settings": "Cài đặt",
+    "files": "Tệp",
+    "channels": "Kênh"
+  },
+  "overview": {
+    "identity": "Danh tính",
+    "name": "Tên",
+    "emoji": "Emoji",
+    "workspace": "Thư mục làm việc",
+    "model": "Mô hình AI",
+    "defaultAgent": "Agent mặc định",
+    "agentId": "ID Agent"
+  },
+  "settings": {
+    "title": "Cài đặt Agent",
+    "identity": "Danh tính",
+    "name": "Tên",
+    "namePlaceholder": "Tên hiển thị của agent",
+    "emoji": "Emoji",
+    "emojiPlaceholder": "vd: 🤖",
+    "workspace": "Đường dẫn thư mục làm việc",
+    "workspacePlaceholder": "/đường/dẫn/thư/mục",
+    "model": "Mô hình",
+    "modelPlaceholder": "vd: openai/gpt-4o (để trống dùng mặc định)",
+    "setDefault": "Đặt làm Agent mặc định",
+    "save": "Lưu cài đặt",
+    "saving": "Đang lưu...",
+    "saved": "Đã lưu cài đặt agent",
+    "saveFailed": "Không thể lưu cài đặt"
+  },
+  "files": {
+    "title": "Tệp thư mục làm việc",
+    "noFiles": "Không tìm thấy tệp",
+    "noFileSelected": "Chọn tệp để chỉnh sửa",
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "saved": "Đã lưu tệp",
+    "saveFailed": "Không thể lưu tệp",
+    "openFolder": "Mở thư mục"
+  },
+  "channels": {
+    "title": "Liên kết kênh",
+    "description": "Các kênh mà agent này kết nối",
+    "noChannels": "Chưa có kênh nào",
+    "noChannelsDesc": "Cấu hình kênh trong trang Kênh trước."
+  },
+  "create": {
+    "title": "Tạo Agent mới",
+    "id": "ID Agent",
+    "idPlaceholder": "vd: dev, main, assistant",
+    "idHelp": "Định danh duy nhất (chữ thường, không dấu cách)",
+    "name": "Tên Agent",
+    "namePlaceholder": "vd: Dev Agent, Trợ lý chính",
+    "emoji": "Biểu tượng",
+    "workspace": "Đường dẫn thư mục làm việc",
+    "workspacePlaceholder": "Để trống để dùng mặc định",
+    "model": "Mô hình",
+    "modelPlaceholder": "Để trống dùng mặc định",
+    "setDefault": "Đặt làm agent mặc định",
+    "cancel": "Hủy",
+    "create": "Tạo Agent",
+    "creating": "Đang tạo..."
+  },
+  "delete": {
+    "title": "Xóa Agent",
+    "confirm": "Bạn có chắc muốn xóa agent \"{{name}}\"?",
+    "description": "Thao tác này sẽ xóa vĩnh viễn agent, thư mục làm việc và dữ liệu runtime.",
+    "cancel": "Hủy",
+    "delete": "Xóa"
+  },
+  "workspace": {
+    "label": "Thư mục làm việc",
+    "selectFolder": "Chọn thư mục",
+    "newFolder": "Thư mục mới...",
+    "newFolderName": "Tên thư mục",
+    "newFolderPlaceholder": "vd: workspace-dev",
+    "create": "Tạo",
+    "cancel": "Hủy",
+    "creating": "Đang tạo...",
+    "created": "Đã tạo thư mục",
+    "createFailed": "Không thể tạo thư mục"
+  },
+  "toast": {
+    "created": "Đã tạo agent",
+    "deleted": "Đã xóa agent",
+    "createFailed": "Không thể tạo agent",
+    "deleteFailed": "Không thể xóa agent"
+  }
+}

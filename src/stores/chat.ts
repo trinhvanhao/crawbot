@@ -85,6 +85,7 @@ interface ChatState {
   // Sessions
   sessions: ChatSession[];
   currentSessionKey: string;
+  selectedAgentId: string;
 
   // Thinking
   showThinking: boolean;
@@ -93,6 +94,7 @@ interface ChatState {
   // Actions
   loadSessions: () => Promise<void>;
   switchSession: (key: string) => void;
+  switchAgent: (agentId: string) => void;
   newSession: () => void;
   loadHistory: (quiet?: boolean) => Promise<void>;
   sendMessage: (text: string, attachments?: Array<{ fileName: string; mimeType: string; fileSize: number; stagedPath: string; preview: string | null }>) => Promise<void>;
@@ -601,13 +603,7 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
   }
 }
 
-function getCanonicalPrefixFromSessions(sessions: ChatSession[]): string | null {
-  const canonical = sessions.find((s) => s.key.startsWith('agent:'))?.key;
-  if (!canonical) return null;
-  const parts = canonical.split(':');
-  if (parts.length < 2) return null;
-  return `${parts[0]}:${parts[1]}`;
-}
+
 
 function isToolOnlyMessage(message: RawMessage | undefined): boolean {
   if (!message) return false;
@@ -875,6 +871,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sessions: [],
   currentSessionKey: DEFAULT_SESSION_KEY,
+  selectedAgentId: 'main',
 
   showThinking: true,
   thinkingLevel: null,
@@ -954,8 +951,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // ── Switch session ──
 
   switchSession: (key: string) => {
+    // Derive agentId from session key (agent:<agentId>:<session>)
+    const parts = key.split(':');
+    const agentId = parts.length >= 2 && parts[0] === 'agent' ? parts[1] : get().selectedAgentId;
     set({
       currentSessionKey: key,
+      selectedAgentId: agentId,
       messages: [],
       streamingText: '',
       streamingMessage: null,
@@ -970,11 +971,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().loadHistory();
   },
 
+  // ── Switch agent ──
+
+  switchAgent: (agentId: string) => {
+    const { sessions } = get();
+    const prefix = `agent:${agentId}`;
+    // Find first session belonging to this agent
+    const agentSession = sessions.find((s) => s.key.startsWith(prefix + ':'));
+    const sessionKey = agentSession?.key ?? `${prefix}:main`;
+
+    set({
+      selectedAgentId: agentId,
+      currentSessionKey: sessionKey,
+      messages: [],
+      streamingText: '',
+      streamingMessage: null,
+      streamingTools: [],
+      activeRunId: null,
+      error: null,
+      pendingFinal: false,
+      lastUserMessageAt: null,
+      pendingToolImages: [],
+    });
+    get().loadHistory();
+  },
+
   // ── New session ──
 
   newSession: () => {
-    // Generate a new unique session key and switch to it
-    const prefix = getCanonicalPrefixFromSessions(get().sessions) ?? DEFAULT_CANONICAL_PREFIX;
+    // Generate a new unique session key for the selected agent
+    const prefix = `agent:${get().selectedAgentId}`;
     const newKey = `${prefix}:session-${Date.now()}`;
     const newSessionEntry: ChatSession = { key: newKey, displayName: newKey };
     set((s) => ({

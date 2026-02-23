@@ -67,6 +67,7 @@
         "baseUrl": "Base URL",
         "modelId": "Model ID",
         "modelIdDesc": "The model identifier from your provider (e.g. deepseek-ai/DeepSeek-V3)",
+        "defaultModel": "Default Model",
         "apiKey": "API Key",
         "save": "Save",
         "validateSave": "Validate & Save",

@@ -113,6 +113,18 @@ const electronAPI = {
         'skill:updateConfig',
         'skill:getConfig',
         'skill:getAllConfigs',
+        // Agent config (direct file access)
+        'agent:list',
+        'agent:get',
+        'agent:create',
+        'agent:update',
+        'agent:delete',
+        'agent:getWorkspaceFiles',
+        'agent:readFile',
+        'agent:writeFile',
+        'agent:listChannels',
+        'agent:listFolders',
+        'agent:createFolder',
         // Logs
         'log:getRecent',
         'log:readFile',

@@ -6,6 +6,50 @@
 import type { RawMessage, ContentBlock } from '@/stores/chat';
 
 /**
+ * Parse inline <think>...</think> and <final>...</final> XML tags
+ * from model output text. Used for models like Gemini that embed
+ * reasoning in XML tags rather than separate content blocks.
+ *
+ * Returns the cleaned display text and any extracted thinking content.
+ */
+function parseInlineThinkingTags(raw: string): { text: string; thinking: string | null } {
+  // Extract all <think>...</think> blocks
+  const thinkParts: string[] = [];
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/gi;
+  let m;
+  while ((m = thinkRegex.exec(raw)) !== null) {
+    const cleaned = m[1].trim();
+    if (cleaned) thinkParts.push(cleaned);
+  }
+
+  // Remove <think>...</think> blocks from text
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '');
+
+  // If <final>...</final> tags exist, extract only that content as display text
+  const finalParts: string[] = [];
+  const finalRegex = /<final>([\s\S]*?)<\/final>/gi;
+  while ((m = finalRegex.exec(text)) !== null) {
+    finalParts.push(m[1]);
+  }
+
+  if (finalParts.length > 0) {
+    text = finalParts.join('\n\n');
+  }
+
+  return {
+    text: text.trim(),
+    thinking: thinkParts.length > 0 ? thinkParts.join('\n\n') : null,
+  };
+}
+
+/**
+ * Check whether a string contains inline thinking XML tags.
+ */
+function hasInlineThinkingTags(text: string): boolean {
+  return /<think>[\s\S]*?<\/think>/i.test(text) || /<final>[\s\S]*?<\/final>/i.test(text);
+}
+
+/**
  * Clean Gateway metadata from user message text for display.
  * Strips: [media attached: ... | ...], [message_id: ...],
  * and the timestamp prefix [Day Date Time Timezone].
@@ -67,11 +111,19 @@ export function extractText(message: RawMessage | unknown): string {
     result = result.replace(/\[\[\s*(?:reply_to_current|reply_to\s*:\s*[^\]\n]+)\s*\]\]/gi, '').trim();
   }
 
+  // Strip inline <think>/<final> XML tags from assistant messages
+  // (Gemini and similar models embed reasoning in these tags)
+  if (!isUser && result && hasInlineThinkingTags(result)) {
+    result = parseInlineThinkingTags(result).text;
+  }
+
   return result;
 }
 
 /**
  * Extract thinking/reasoning content from a message.
+ * Handles both Anthropic-style content blocks (type: 'thinking')
+ * and inline <think>...</think> XML tags (Gemini, etc.).
  * Returns null if no thinking content found.
  */
 export function extractThinking(message: RawMessage | unknown): string | null {
@@ -79,15 +131,31 @@ export function extractThinking(message: RawMessage | unknown): string | null {
   const msg = message as Record<string, unknown>;
   const content = msg.content;
 
-  if (!Array.isArray(content)) return null;
-
   const parts: string[] = [];
-  for (const block of content as ContentBlock[]) {
-    if (block.type === 'thinking' && block.thinking) {
-      const cleaned = block.thinking.trim();
-      if (cleaned) {
-        parts.push(cleaned);
+
+  if (Array.isArray(content)) {
+    for (const block of content as ContentBlock[]) {
+      // Path 1: Anthropic-style thinking content blocks
+      if (block.type === 'thinking' && block.thinking) {
+        const cleaned = block.thinking.trim();
+        if (cleaned) {
+          parts.push(cleaned);
+        }
       }
+
+      // Path 2: Inline <think> tags in text blocks (Gemini, etc.)
+      if (block.type === 'text' && block.text && hasInlineThinkingTags(block.text)) {
+        const parsed = parseInlineThinkingTags(block.text);
+        if (parsed.thinking) {
+          parts.push(parsed.thinking);
+        }
+      }
+    }
+  } else if (typeof content === 'string' && hasInlineThinkingTags(content)) {
+    // String content with inline <think> tags
+    const parsed = parseInlineThinkingTags(content);
+    if (parsed.thinking) {
+      parts.push(parsed.thinking);
     }
   }
 

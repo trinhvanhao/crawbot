@@ -47,6 +47,21 @@ import {
 } from '../utils/channel-config';
 import { checkUvInstalled, installUv, setupManagedPython } from '../utils/uv-setup';
 import { updateSkillConfig, getSkillConfig, getAllSkillConfigs } from '../utils/skill-config';
+import {
+  getAgentList,
+  getAgentDefaults,
+  getAgent,
+  saveAgent,
+  deleteAgent,
+  getAgentWorkspaceFiles,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+  createWorkspaceDir,
+  listChannelTypes,
+  listOpenclawFolders,
+  createOpenclawFolder,
+  getOpenclawDirPath,
+} from '../utils/agent-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { getProviderConfig, getProviderDefaultModel } from '../utils/provider-registry';
 
@@ -97,6 +112,9 @@ export function registerIpcHandlers(
   // WhatsApp handlers
   registerWhatsAppHandlers(mainWindow);
 
+  // Agent config handlers (direct file access)
+  registerAgentHandlers();
+
   // File staging handlers (upload/send separation)
   registerFileHandlers();
 }
@@ -126,6 +144,202 @@ function registerSkillConfigHandlers(): void {
   // Get all skill configs
   ipcMain.handle('skill:getAllConfigs', async () => {
     return getAllSkillConfigs();
+  });
+}
+
+/**
+ * Agent config IPC handlers
+ * Direct read/write to ~/.openclaw/openclaw.json and workspace files
+ */
+function registerAgentHandlers(): void {
+  // List all agents + defaults
+  ipcMain.handle('agent:list', async () => {
+    try {
+      const list = getAgentList();
+      const defaults = getAgentDefaults();
+      return { success: true, agents: list, defaults };
+    } catch (error) {
+      console.error('Failed to list agents:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get a single agent by id
+  ipcMain.handle('agent:get', async (_, id: string) => {
+    try {
+      const agent = getAgent(id);
+      return { success: true, agent };
+    } catch (error) {
+      console.error('Failed to get agent:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Create a new agent (config + workspace scaffold)
+  ipcMain.handle('agent:create', async (_, params: {
+    id: string;
+    name: string;
+    emoji?: string;
+    workspace?: string;
+    model?: string;
+    isDefault?: boolean;
+  }) => {
+    try {
+      // Check for duplicate id
+      const existing = getAgent(params.id);
+      if (existing) {
+        return { success: false, error: `Agent with id "${params.id}" already exists` };
+      }
+
+      // Resolve workspace: explicit > defaults > ~/.openclaw/workspace-{id}
+      const defaults = getAgentDefaults();
+      const workspace = params.workspace?.trim()
+        || defaults?.workspace
+        || join(homedir(), '.openclaw', `workspace-${params.id}`);
+
+      // Scaffold workspace directory
+      createWorkspaceDir(workspace);
+
+      // Build agent entry matching OpenClaw schema
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const agent: Record<string, any> = {
+        id: params.id,
+        name: params.name,
+        workspace,
+        subagents: { allowAgents: ['*'] },
+      };
+      if (params.emoji) agent.identity = { emoji: params.emoji };
+      if (params.isDefault) agent.default = true;
+      if (params.model?.trim()) agent.model = params.model.trim();
+
+      saveAgent(agent);
+
+      return { success: true, agent };
+    } catch (error) {
+      console.error('Failed to create agent:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Update an existing agent
+  ipcMain.handle('agent:update', async (_, id: string, updates: {
+    name?: string;
+    emoji?: string;
+    workspace?: string;
+    model?: string | { primary?: string; fallbacks?: string[] } | null;
+    default?: boolean;
+  }) => {
+    try {
+      const agent = getAgent(id);
+      if (!agent) {
+        return { success: false, error: `Agent "${id}" not found` };
+      }
+
+      // Apply updates
+      if (updates.name !== undefined) {
+        agent.name = updates.name || undefined;
+      }
+      if (updates.emoji !== undefined) {
+        agent.identity = updates.emoji ? { emoji: updates.emoji } : undefined;
+      }
+      if (updates.workspace !== undefined) {
+        agent.workspace = updates.workspace || undefined;
+      }
+      if (updates.model !== undefined) {
+        if (updates.model === null || updates.model === '') {
+          delete agent.model;
+        } else {
+          agent.model = updates.model;
+        }
+      }
+      if (updates.default !== undefined) {
+        agent.default = updates.default || undefined;
+      }
+
+      saveAgent(agent);
+      return { success: true, agent };
+    } catch (error) {
+      console.error('Failed to update agent:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Delete an agent
+  ipcMain.handle('agent:delete', async (_, id: string) => {
+    try {
+      deleteAgent(id);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to delete agent:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get workspace files for an agent
+  ipcMain.handle('agent:getWorkspaceFiles', async (_, workspacePath: string) => {
+    try {
+      const files = getAgentWorkspaceFiles(workspacePath);
+      return { success: true, files };
+    } catch (error) {
+      console.error('Failed to get workspace files:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Read a workspace file
+  ipcMain.handle('agent:readFile', async (_, filePath: string) => {
+    try {
+      const content = readWorkspaceFile(filePath);
+      return { success: true, content };
+    } catch (error) {
+      console.error('Failed to read workspace file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Write a workspace file
+  ipcMain.handle('agent:writeFile', async (_, filePath: string, content: string) => {
+    try {
+      writeWorkspaceFile(filePath, content);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to write workspace file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // List folders inside ~/.openclaw/ for workspace selector
+  ipcMain.handle('agent:listFolders', async () => {
+    try {
+      const folders = listOpenclawFolders();
+      const basePath = getOpenclawDirPath();
+      return { success: true, folders, basePath };
+    } catch (error) {
+      console.error('Failed to list openclaw folders:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Create a new folder inside ~/.openclaw/
+  ipcMain.handle('agent:createFolder', async (_, name: string) => {
+    try {
+      const folderPath = createOpenclawFolder(name);
+      return { success: true, path: folderPath };
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // List configured channel types (for channel binding UI)
+  ipcMain.handle('agent:listChannels', async () => {
+    try {
+      const channels = listChannelTypes();
+      return { success: true, channels };
+    } catch (error) {
+      console.error('Failed to list channels:', error);
+      return { success: false, error: String(error) };
+    }
   });
 }
 

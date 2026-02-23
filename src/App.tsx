@@ -13,6 +13,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Chat } from './pages/Chat';
 import { Channels } from './pages/Channels';
 import { Skills } from './pages/Skills';
+import { Agents } from './pages/Agents';
 import { Cron } from './pages/Cron';
 import { Settings } from './pages/Settings';
 import { Setup } from './pages/Setup';
@@ -157,6 +158,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/channels" element={<Channels />} />
             <Route path="/skills" element={<Skills />} />
+            <Route path="/agents" element={<Agents />} />
             <Route path="/cron" element={<Cron />} />
             <Route path="/settings/*" element={<Settings />} />
           </Route>

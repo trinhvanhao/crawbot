@@ -67,6 +67,7 @@
         "baseUrl": "URL cơ sở",
         "modelId": "ID mô hình",
         "modelIdDesc": "Mã định danh mô hình từ nhà cung cấp (ví dụ: deepseek-ai/DeepSeek-V3)",
+        "defaultModel": "Mô hình mặc định",
         "apiKey": "Khóa API",
         "save": "Lưu",
         "validateSave": "Xác thực & Lưu",

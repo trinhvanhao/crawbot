@@ -1,0 +1,102 @@
+{
+  "title": "Agents",
+  "subtitle": "Manage your OpenClaw AI agents",
+  "refresh": "Refresh",
+  "newAgent": "New Agent",
+  "noAgents": "No agents configured",
+  "noAgentsDesc": "Create your first agent to get started.",
+  "selectAgent": "Select an agent to view details",
+  "default": "Default",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "tabs": {
+    "overview": "Overview",
+    "settings": "Settings",
+    "files": "Files",
+    "channels": "Channels"
+  },
+  "overview": {
+    "identity": "Identity",
+    "name": "Name",
+    "emoji": "Emoji",
+    "workspace": "Workspace",
+    "model": "Model",
+    "defaultAgent": "Default Agent",
+    "agentId": "Agent ID"
+  },
+  "settings": {
+    "title": "Agent Settings",
+    "identity": "Identity",
+    "name": "Name",
+    "namePlaceholder": "Agent display name",
+    "emoji": "Emoji",
+    "emojiPlaceholder": "e.g. 🤖",
+    "workspace": "Workspace Path",
+    "workspacePlaceholder": "/path/to/workspace",
+    "model": "Model",
+    "modelPlaceholder": "e.g. openai/gpt-4o (leave empty for default)",
+    "setDefault": "Set as Default Agent",
+    "save": "Save Settings",
+    "saving": "Saving...",
+    "saved": "Agent settings saved",
+    "saveFailed": "Failed to save settings"
+  },
+  "files": {
+    "title": "Workspace Files",
+    "noFiles": "No workspace files found",
+    "noFileSelected": "Select a file to edit",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "File saved",
+    "saveFailed": "Failed to save file",
+    "openFolder": "Open Folder"
+  },
+  "channels": {
+    "title": "Channel Bindings",
+    "description": "Channels this agent is connected to",
+    "noChannels": "No channels configured",
+    "noChannelsDesc": "Configure channels in the Channels page first."
+  },
+  "create": {
+    "title": "Create New Agent",
+    "id": "Agent ID",
+    "idPlaceholder": "e.g. dev, main, assistant",
+    "idHelp": "Unique identifier (lowercase, no spaces)",
+    "name": "Agent Name",
+    "namePlaceholder": "e.g. Dev Agent, Main Assistant",
+    "emoji": "Icon",
+    "workspace": "Workspace Path",
+    "workspacePlaceholder": "Leave empty for default",
+    "model": "Model",
+    "modelPlaceholder": "Leave empty for default",
+    "setDefault": "Set as default agent",
+    "cancel": "Cancel",
+    "create": "Create Agent",
+    "creating": "Creating..."
+  },
+  "delete": {
+    "title": "Delete Agent",
+    "confirm": "Are you sure you want to delete agent \"{{name}}\"?",
+    "description": "This will permanently delete the agent, its workspace files, and runtime data.",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "workspace": {
+    "label": "Workspace Folder",
+    "selectFolder": "Select a folder",
+    "newFolder": "New folder...",
+    "newFolderName": "Folder name",
+    "newFolderPlaceholder": "e.g. workspace-dev",
+    "create": "Create",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "created": "Folder created",
+    "createFailed": "Failed to create folder"
+  },
+  "toast": {
+    "created": "Agent created",
+    "deleted": "Agent deleted",
+    "createFailed": "Failed to create agent",
+    "deleteFailed": "Failed to delete agent"
+  }
+}

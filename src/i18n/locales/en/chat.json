@@ -11,6 +11,7 @@
     },
     "noLogs": "(No logs available yet)",
     "toolbar": {
+        "agent": "Select agent",
         "newSession": "New session",
         "refresh": "Refresh chat",
         "showThinking": "Show thinking",
