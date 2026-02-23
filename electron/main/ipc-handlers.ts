@@ -63,6 +63,7 @@ import {
   getOpenclawDirPath,
 } from '../utils/agent-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
+import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
 import { getProviderConfig, getProviderDefaultModel } from '../utils/provider-registry';
 
 /**
@@ -117,6 +118,9 @@ export function registerIpcHandlers(
 
   // File staging handlers (upload/send separation)
   registerFileHandlers();
+
+  // Config bundle export/import handlers
+  registerConfigBundleHandlers();
 }
 
 /**
@@ -2125,6 +2129,64 @@ function registerFileHandlers(): void {
       }
     }
     return results;
+  });
+}
+
+/**
+ * Config bundle export/import handlers
+ */
+function registerConfigBundleHandlers(): void {
+  ipcMain.handle('config:export', async (_, options: { includeApiKeys: boolean }) => {
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const defaultPath = join(homedir(), 'Downloads', `crawbot-config-${timestamp}.zip`);
+
+    const result = await dialog.showSaveDialog({
+      defaultPath,
+      filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+    });
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'cancelled' };
+    }
+
+    return exportConfigBundle(result.filePath, { includeApiKeys: options.includeApiKeys });
+  });
+
+  ipcMain.handle('config:import', async () => {
+    const openResult = await dialog.showOpenDialog({
+      filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+      properties: ['openFile'],
+    });
+    if (openResult.canceled || !openResult.filePaths.length) {
+      return { success: false, error: 'cancelled' };
+    }
+
+    const zipPath = openResult.filePaths[0];
+    const validation = validateConfigBundle(zipPath);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    const meta = validation.meta!;
+    const confirmResult = await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Import Config Bundle',
+      message: 'This will overwrite your current configuration.',
+      detail: [
+        `Date: ${new Date(meta.timestamp).toLocaleString()}`,
+        `Files: ${meta.fileCount}`,
+        `App version: ${meta.appVersion}`,
+        `API keys: ${meta.includesApiKeys ? 'included' : 'not included'}`,
+      ].join('\n'),
+      buttons: ['Cancel', 'Import'],
+      defaultId: 0,
+      cancelId: 0,
+    });
+
+    if (confirmResult.response !== 1) {
+      return { success: false, error: 'cancelled' };
+    }
+
+    return importConfigBundle(zipPath);
   });
 }
 

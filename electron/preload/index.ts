@@ -138,6 +138,9 @@ const electronAPI = {
         'media:saveImage',
         // Chat send with media (reads staged files in main process)
         'chat:sendWithMedia',
+        // Config bundle export/import
+        'config:export',
+        'config:import',
         // OpenClaw extras
         'openclaw:getDir',
         'openclaw:getConfigDir',

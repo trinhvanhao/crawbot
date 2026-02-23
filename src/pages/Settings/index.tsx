@@ -14,6 +14,8 @@ import {
   Download,
   Copy,
   FileText,
+  Archive,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +74,9 @@ export function Settings() {
   const showCliTools = isMac || isWindows || isLinux;
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [includeApiKeys, setIncludeApiKeys] = useState(false);
 
   const handleShowLogs = async () => {
     try {
@@ -215,6 +220,55 @@ export function Settings() {
       toast.error(`Install failed: ${String(error)}`);
     } finally {
       setInstallingCli(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const result = await window.electron.ipcRenderer.invoke('config:export', {
+        includeApiKeys,
+      }) as { success: boolean; filePath?: string; fileCount?: number; error?: string };
+      if (result.success) {
+        toast.success(t('data.exportSuccess'));
+      } else if (result.error !== 'cancelled') {
+        toast.error(result.error || t('data.exportFailed'));
+      }
+    } catch (error) {
+      toast.error(`${t('data.exportFailed')}: ${String(error)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      setImporting(true);
+      const result = await window.electron.ipcRenderer.invoke('config:import') as {
+        success: boolean;
+        fileCount?: number;
+        error?: string;
+      };
+      if (result.success) {
+        toast.success(t('data.importSuccess', { count: result.fileCount ?? 0 }));
+        const restart = await window.electron.ipcRenderer.invoke('dialog:message', {
+          type: 'question',
+          title: t('data.reloadTitle'),
+          message: t('data.reloadMessage'),
+          buttons: ['Later', 'Restart Now'],
+          defaultId: 1,
+          cancelId: 0,
+        }) as { response: number };
+        if (restart.response === 1) {
+          await window.electron.ipcRenderer.invoke('app:relaunch');
+        }
+      } else if (result.error !== 'cancelled') {
+        toast.error(result.error || t('data.importFailed'));
+      }
+    } catch (error) {
+      toast.error(`${t('data.importFailed')}: ${String(error)}`);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -467,6 +521,57 @@ export function Settings() {
               checked={devModeUnlocked}
               onCheckedChange={setDevModeUnlocked}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Archive className="h-5 w-5" />
+            {t('data.title')}
+          </CardTitle>
+          <CardDescription>{t('data.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t('data.export')}</Label>
+            <p className="text-sm text-muted-foreground">
+              {t('data.exportDesc')}
+            </p>
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <Label className="text-sm">{t('data.includeApiKeys')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('data.includeApiKeysDesc')}
+                </p>
+              </div>
+              <Switch
+                checked={includeApiKeys}
+                onCheckedChange={setIncludeApiKeys}
+              />
+            </div>
+            <Button variant="outline" onClick={handleExport} disabled={exporting}>
+              <Archive className="h-4 w-4 mr-2" />
+              {exporting ? t('data.exporting') : t('data.exportButton')}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>{t('data.import')}</Label>
+            <p className="text-sm text-muted-foreground">
+              {t('data.importDesc')}
+            </p>
+            <p className="text-xs text-destructive">
+              {t('data.importWarning')}
+            </p>
+            <Button variant="outline" onClick={handleImport} disabled={importing}>
+              <Upload className="h-4 w-4 mr-2" />
+              {importing ? t('data.importing') : t('data.importButton')}
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -155,6 +155,27 @@
         "installMessage": "Cài đặt lệnh \"openclaw\"?",
         "installDetail": "Thao tác này sẽ tạo ~/.local/bin/openclaw. Đảm bảo ~/.local/bin nằm trong PATH nếu bạn muốn chạy lệnh toàn cục."
     },
+    "data": {
+        "title": "Dữ liệu",
+        "description": "Xuất và nhập cấu hình của bạn",
+        "export": "Xuất cấu hình",
+        "exportDesc": "Lưu cấu hình CrawBot và OpenClaw dưới dạng tệp ZIP để sao lưu hoặc di chuyển.",
+        "exportButton": "Xuất",
+        "exporting": "Đang xuất...",
+        "exportSuccess": "Đã xuất cấu hình thành công",
+        "exportFailed": "Không thể xuất cấu hình",
+        "import": "Nhập cấu hình",
+        "importDesc": "Khôi phục cấu hình từ tệp ZIP đã xuất trước đó.",
+        "importButton": "Nhập",
+        "importing": "Đang nhập...",
+        "importSuccess": "Đã nhập cấu hình thành công ({{count}} tệp)",
+        "importFailed": "Không thể nhập cấu hình",
+        "importWarning": "Việc nhập sẽ ghi đè cài đặt, nhà cung cấp và cấu hình agent hiện tại.",
+        "includeApiKeys": "Bao gồm khóa API",
+        "includeApiKeysDesc": "Bao gồm khóa API nhà cung cấp trong bản xuất. Tắt để chia sẻ.",
+        "reloadTitle": "Cần khởi động lại",
+        "reloadMessage": "Đã nhập cấu hình. Khởi động lại CrawBot để áp dụng thay đổi?"
+    },
     "about": {
         "title": "Giới thiệu",
         "appName": "CrawBot",

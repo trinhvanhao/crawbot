@@ -155,6 +155,27 @@
         "installMessage": "Install the \"openclaw\" command?",
         "installDetail": "This will create ~/.local/bin/openclaw. Ensure ~/.local/bin is on your PATH if you want to run it globally."
     },
+    "data": {
+        "title": "Data",
+        "description": "Export and import your configuration",
+        "export": "Export Config",
+        "exportDesc": "Save your CrawBot and OpenClaw configuration as a ZIP file for backup or migration.",
+        "exportButton": "Export",
+        "exporting": "Exporting...",
+        "exportSuccess": "Configuration exported successfully",
+        "exportFailed": "Failed to export configuration",
+        "import": "Import Config",
+        "importDesc": "Restore configuration from a previously exported ZIP bundle.",
+        "importButton": "Import",
+        "importing": "Importing...",
+        "importSuccess": "Configuration imported successfully ({{count}} files)",
+        "importFailed": "Failed to import configuration",
+        "importWarning": "Importing will overwrite your current settings, providers, and agent configs.",
+        "includeApiKeys": "Include API keys",
+        "includeApiKeysDesc": "Include provider API keys in the export. Disable for sharing.",
+        "reloadTitle": "Restart Required",
+        "reloadMessage": "Configuration has been imported. Restart CrawBot to apply changes?"
+    },
     "about": {
         "title": "About",
         "appName": "CrawBot",
