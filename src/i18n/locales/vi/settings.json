@@ -1,6 +1,14 @@
 {
     "title": "Cài đặt",
     "subtitle": "Tùy chỉnh trải nghiệm CrawBot của bạn",
+    "general": {
+        "title": "Chung",
+        "description": "Hành vi ứng dụng",
+        "launchAtStartup": "Khởi động cùng hệ thống",
+        "launchAtStartupDesc": "Khởi động CrawBot khi bạn đăng nhập",
+        "startMinimized": "Khởi động thu nhỏ",
+        "startMinimizedDesc": "Thu nhỏ vào khay hệ thống khi khởi động"
+    },
     "appearance": {
         "title": "Giao diện",
         "description": "Tùy chỉnh giao diện hiển thị",

@@ -55,8 +55,8 @@ const defaultSettings = {
     if (lang.startsWith('vi')) return 'vi';
     return 'en';
   })(),
-  startMinimized: false,
-  launchAtStartup: false,
+  startMinimized: true,
+  launchAtStartup: true,
   gatewayAutoStart: true,
   gatewayPort: 18789,
   updateChannel: 'stable' as UpdateChannel,
@@ -74,8 +74,14 @@ export const useSettingsStore = create<SettingsState>()(
 
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => { i18n.changeLanguage(language); set({ language }); },
-      setStartMinimized: (startMinimized) => set({ startMinimized }),
-      setLaunchAtStartup: (launchAtStartup) => set({ launchAtStartup }),
+      setStartMinimized: (startMinimized) => {
+        window.electron.ipcRenderer.invoke('app:setStartMinimized', startMinimized);
+        set({ startMinimized });
+      },
+      setLaunchAtStartup: (launchAtStartup) => {
+        window.electron.ipcRenderer.invoke('app:setAutoStart', launchAtStartup);
+        set({ launchAtStartup });
+      },
       setGatewayAutoStart: (gatewayAutoStart) => set({ gatewayAutoStart }),
       setGatewayPort: (gatewayPort) => set({ gatewayPort }),
       setUpdateChannel: (updateChannel) => set({ updateChannel }),

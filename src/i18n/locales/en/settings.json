@@ -1,6 +1,14 @@
 {
     "title": "Settings",
     "subtitle": "Configure your CrawBot experience",
+    "general": {
+        "title": "General",
+        "description": "Application behavior",
+        "launchAtStartup": "Launch at startup",
+        "launchAtStartupDesc": "Start CrawBot when you log in",
+        "startMinimized": "Start minimized",
+        "startMinimizedDesc": "Minimize to system tray on launch"
+    },
     "appearance": {
         "title": "Appearance",
         "description": "Customize the look and feel",

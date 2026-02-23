@@ -57,8 +57,8 @@ const defaults: AppSettings = {
   // General
   theme: 'system',
   language: 'en',
-  startMinimized: false,
-  launchAtStartup: false,
+  startMinimized: true,
+  launchAtStartup: true,
   
   // Gateway
   gatewayAutoStart: true,

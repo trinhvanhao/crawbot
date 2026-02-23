@@ -41,6 +41,8 @@ const electronAPI = {
         'app:platform',
         'app:quit',
         'app:relaunch',
+        'app:setAutoStart',
+        'app:setStartMinimized',
         // Window controls
         'window:minimize',
         'window:maximize',

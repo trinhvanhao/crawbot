@@ -25,7 +25,8 @@ import {
 } from '../utils/secure-storage';
 import { getOpenClawStatus, getOpenClawDir, getOpenClawConfigDir, getOpenClawSkillsDir, ensureDir } from '../utils/paths';
 import { getOpenClawCliCommand, installOpenClawCliMac } from '../utils/openclaw-cli';
-import { getSetting } from '../utils/store';
+import { getSetting, setSetting } from '../utils/store';
+import { setAutoStart } from '../utils/autostart';
 import {
   saveProviderKeyToOpenClaw,
   removeProviderKeyFromOpenClaw,
@@ -1676,6 +1677,17 @@ function registerAppHandlers(): void {
   ipcMain.handle('app:relaunch', () => {
     app.relaunch();
     app.quit();
+  });
+
+  // Set auto-start (launch at login) — persist + apply to OS
+  ipcMain.handle('app:setAutoStart', async (_, enabled: boolean) => {
+    await setSetting('launchAtStartup', enabled);
+    setAutoStart(enabled);
+  });
+
+  // Set start-minimized — persist to electron-store
+  ipcMain.handle('app:setStartMinimized', async (_, enabled: boolean) => {
+    await setSetting('startMinimized', enabled);
   });
 }
 

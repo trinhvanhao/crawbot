@@ -51,6 +51,10 @@ export function Settings() {
     setAutoDownloadUpdate,
     devModeUnlocked,
     setDevModeUnlocked,
+    launchAtStartup,
+    setLaunchAtStartup,
+    startMinimized,
+    setStartMinimized,
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
@@ -222,6 +226,41 @@ export function Settings() {
           {t('subtitle')}
         </p>
       </div>
+
+      {/* General */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('general.title')}</CardTitle>
+          <CardDescription>{t('general.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>{t('general.launchAtStartup')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('general.launchAtStartupDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={launchAtStartup}
+              onCheckedChange={setLaunchAtStartup}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>{t('general.startMinimized')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('general.startMinimizedDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={startMinimized}
+              onCheckedChange={setStartMinimized}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Appearance */}
       <Card>

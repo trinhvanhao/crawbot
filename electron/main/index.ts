@@ -12,6 +12,8 @@ import { createMenu } from './menu';
 import { appUpdater, registerUpdateHandlers } from './updater';
 import { logger } from '../utils/logger';
 import { warmupNetworkOptimization } from '../utils/uv-env';
+import { getSetting } from '../utils/store';
+import { setAutoStart } from '../utils/autostart';
 
 import { ClawHubService } from '../gateway/clawhub';
 
@@ -54,7 +56,7 @@ function getAppIcon(): Electron.NativeImage | undefined {
 /**
  * Create the main application window
  */
-function createWindow(): BrowserWindow {
+function createWindow(startMinimized = false): BrowserWindow {
   const isMac = process.platform === 'darwin';
 
   const win = new BrowserWindow({
@@ -76,9 +78,11 @@ function createWindow(): BrowserWindow {
     show: false,
   });
 
-  // Show window when ready to prevent visual flash
+  // Show window when ready (unless starting minimized to tray)
   win.once('ready-to-show', () => {
-    win.show();
+    if (!startMinimized) {
+      win.show();
+    }
   });
 
   // Handle external links
@@ -112,11 +116,19 @@ async function initialize(): Promise<void> {
   // Warm up network optimization (non-blocking)
   void warmupNetworkOptimization();
 
+  // Sync autostart with OS on every launch (ensures .desktop file matches setting)
+  const launchAtStartup = await getSetting('launchAtStartup');
+  setAutoStart(launchAtStartup);
+
+  // Determine if window should start hidden
+  const startMinimized =
+    process.argv.includes('--minimized') || (await getSetting('startMinimized'));
+
   // Set application menu
   createMenu();
 
   // Create the main window
-  mainWindow = createWindow();
+  mainWindow = createWindow(startMinimized);
 
   // Create system tray
   createTray(mainWindow);
@@ -165,9 +177,9 @@ async function initialize(): Promise<void> {
   // Note: Auto-check for updates is driven by the renderer (update store init)
   // so it respects the user's "Auto-check for updates" setting.
 
-  // Windows: minimize to tray on close instead of quitting
+  // Minimize to tray on close instead of quitting (all platforms)
   mainWindow.on('close', (event) => {
-    if (process.platform === 'win32' && !isQuitting) {
+    if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
     }
@@ -209,7 +221,9 @@ app.whenReady().then(() => {
   // Register activate handler AFTER app is ready to prevent
   // "Cannot create BrowserWindow before app is ready" on macOS.
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (mainWindow) {
+      mainWindow.show();
+    } else if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow();
     }
   });
