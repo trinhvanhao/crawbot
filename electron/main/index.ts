@@ -182,6 +182,16 @@ async function initialize(): Promise<void> {
     logger.debug('Auto-starting Gateway...');
     await gatewayManager.start();
     logger.info('Gateway auto-start succeeded');
+
+    // Inject CrawBot context into AGENTS.md after workspace files settle
+    setTimeout(async () => {
+      try {
+        const { injectCrawBotContext } = await import('../utils/agents-md-injection');
+        await injectCrawBotContext();
+      } catch (err) {
+        logger.warn('Failed to inject CrawBot context:', err);
+      }
+    }, 5000);
   } catch (error) {
     logger.error('Gateway auto-start failed:', error);
     mainWindow?.webContents.send('gateway:error', String(error));

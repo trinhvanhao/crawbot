@@ -45,6 +45,9 @@ export interface AppSettings {
   selectedBundles: string[];
   enabledSkills: string[];
   disabledSkills: string[];
+
+  // Injection tracking
+  lastInjectedVersion: string;
 }
 
 /**
@@ -76,6 +79,9 @@ const defaults: AppSettings = {
   selectedBundles: ['productivity', 'developer'],
   enabledSkills: [],
   disabledSkills: [],
+
+  // Injection tracking
+  lastInjectedVersion: '',
 };
 
 /**
