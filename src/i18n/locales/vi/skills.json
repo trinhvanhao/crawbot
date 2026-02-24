@@ -10,6 +10,8 @@
     },
     "filter": {
         "all": "Tất cả ({{count}})",
+        "active": "Hoạt động ({{count}})",
+        "inactive": "Không hoạt động ({{count}})",
         "builtIn": "Tích hợp ({{count}})",
         "marketplace": "Cửa hàng ({{count}})"
     },
@@ -30,7 +32,10 @@
         "bundled": "Đi kèm",
         "userInstalled": "Người dùng cài đặt",
         "enabled": "Đã bật",
+        "active": "Đang hoạt động",
         "disabled": "Đã tắt",
+        "unavailable": "Không khả dụng",
+        "unavailableHint": "Đã bật nhưng không được tải — thiếu phụ thuộc hoặc yêu cầu nền tảng",
         "apiKey": "Khóa API",
         "apiKeyPlaceholder": "Nhập khóa API (tùy chọn)",
         "apiKeyDesc": "Khóa API chính cho kỹ năng này. Để trống nếu không bắt buộc hoặc đã được cấu hình ở nơi khác.",

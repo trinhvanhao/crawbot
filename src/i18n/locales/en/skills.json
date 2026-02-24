@@ -10,6 +10,8 @@
     },
     "filter": {
         "all": "All ({{count}})",
+        "active": "Active ({{count}})",
+        "inactive": "Inactive ({{count}})",
         "builtIn": "Built-in ({{count}})",
         "marketplace": "Marketplace ({{count}})"
     },
@@ -30,7 +32,10 @@
         "bundled": "Bundled",
         "userInstalled": "User Installed",
         "enabled": "Enabled",
+        "active": "Active",
         "disabled": "Disabled",
+        "unavailable": "Unavailable",
+        "unavailableHint": "Enabled but not loaded — missing dependencies or platform requirements",
         "apiKey": "API Key",
         "apiKeyPlaceholder": "Enter API Key (optional)",
         "apiKeyDesc": "The primary API key for this skill. Leave blank if not required or configured elsewhere.",

@@ -338,10 +338,18 @@ function SkillDetailDialog({ skill, onClose, onToggle }: SkillDetailDialogProps)
 
           <div className="flex items-center justify-between p-4 border-t bg-muted/10">
             <div className="flex items-center gap-2">
-              {skill.enabled ? (
+              {skill.enabled && skill.isActive ? (
                 <>
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <span className="text-green-600 dark:text-green-400">{t('detail.enabled')}</span>
+                  <span className="text-green-600 dark:text-green-400">{t('detail.active')}</span>
+                </>
+              ) : skill.enabled && !skill.isActive ? (
+                <>
+                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  <div className="flex flex-col">
+                    <span className="text-yellow-600 dark:text-yellow-400">{t('detail.unavailable')}</span>
+                    <span className="text-xs text-muted-foreground">{t('detail.unavailableHint')}</span>
+                  </div>
                 </>
               ) : (
                 <>
@@ -540,7 +548,7 @@ export function Skills() {
   const [marketplaceQuery, setMarketplaceQuery] = useState('');
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [activeTab, setActiveTab] = useState('all');
-  const [selectedSource, setSelectedSource] = useState<'all' | 'built-in' | 'marketplace'>('all');
+  const [selectedSource, setSelectedSource] = useState<'all' | 'active' | 'inactive' | 'built-in' | 'marketplace'>('all');
   const marketplaceDiscoveryAttemptedRef = useRef(false);
 
   const isGatewayRunning = gatewayStatus.state === 'running';
@@ -576,7 +584,11 @@ export function Skills() {
       skill.description.toLowerCase().includes(searchQuery.toLowerCase());
 
     let matchesSource = true;
-    if (selectedSource === 'built-in') {
+    if (selectedSource === 'active') {
+      matchesSource = !!skill.isActive;
+    } else if (selectedSource === 'inactive') {
+      matchesSource = !skill.isActive;
+    } else if (selectedSource === 'built-in') {
       matchesSource = !!skill.isBundled;
     } else if (selectedSource === 'marketplace') {
       matchesSource = !skill.isBundled;
@@ -596,6 +608,8 @@ export function Skills() {
 
   const sourceStats = {
     all: skills.length,
+    active: skills.filter(s => s.isActive).length,
+    inactive: skills.filter(s => !s.isActive).length,
     builtIn: skills.filter(s => s.isBundled).length,
     marketplace: skills.filter(s => !s.isBundled).length,
   };
@@ -771,7 +785,25 @@ export function Skills() {
                 size="sm"
                 onClick={() => setSelectedSource('all')}
               >
-                All ({sourceStats.all})
+                {t('filter.all', { count: sourceStats.all })}
+              </Button>
+              <Button
+                variant={selectedSource === 'active' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedSource('active')}
+                className="gap-2"
+              >
+                <CheckCircle2 className="h-3 w-3" />
+                {t('filter.active', { count: sourceStats.active })}
+              </Button>
+              <Button
+                variant={selectedSource === 'inactive' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedSource('inactive')}
+                className="gap-2"
+              >
+                <XCircle className="h-3 w-3" />
+                {t('filter.inactive', { count: sourceStats.inactive })}
               </Button>
               <Button
                 variant={selectedSource === 'built-in' ? 'default' : 'outline'}
@@ -822,7 +854,8 @@ export function Skills() {
                   key={skill.id}
                   className={cn(
                     'cursor-pointer hover:border-primary/50 transition-colors',
-                    skill.enabled && 'border-primary/50 bg-primary/5'
+                    skill.enabled && skill.isActive && 'border-primary/50 bg-primary/5',
+                    skill.enabled && !skill.isActive && 'border-yellow-500/50 bg-yellow-500/5'
                   )}
                   onClick={() => setSelectedSkill(skill)}
                 >
@@ -879,6 +912,12 @@ export function Skills() {
                       {skill.version && (
                         <Badge variant="outline" className="text-xs">
                           v{skill.version}
+                        </Badge>
+                      )}
+                      {skill.enabled && !skill.isActive && (
+                        <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-600 dark:text-yellow-400">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          {t('detail.unavailable')}
                         </Badge>
                       )}
                       {skill.configurable && (
