@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { RawMessage, AttachedFileMeta } from '@/stores/chat';
 import { extractText, extractThinking, extractImages, extractToolUse, formatTimestamp } from './message-utils';
+import { ToolOutputViewer } from './ToolOutputViewer';
 
 interface ChatMessageProps {
   message: RawMessage;
@@ -102,7 +103,7 @@ export const ChatMessage = memo(function ChatMessage({
         {visibleTools.length > 0 && (
           <div className="space-y-1">
             {visibleTools.map((tool, i) => (
-              <ToolCard key={tool.id || i} name={tool.name} input={tool.input} />
+              <ToolCard key={tool.id || i} name={tool.name} input={tool.input} output={tool.output} />
             ))}
           </div>
         )}
@@ -390,7 +391,7 @@ function MessageBubble({
 // ── Thinking Block ──────────────────────────────────────────────
 
 function ThinkingBlock({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="w-full rounded-lg border border-border/50 bg-muted/30 text-sm">
@@ -586,7 +587,7 @@ function ImageLightbox({
 
 // ── Tool Card ───────────────────────────────────────────────────
 
-function ToolCard({ name, input }: { name: string; input: unknown }) {
+function ToolCard({ name, input, output }: { name: string; input: unknown; output?: string }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -599,10 +600,17 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
         <span className="font-mono text-xs">{name}</span>
         {expanded ? <ChevronDown className="h-3 w-3 ml-auto" /> : <ChevronRight className="h-3 w-3 ml-auto" />}
       </button>
-      {expanded && input != null && (
-        <pre className="px-3 pb-2 text-xs text-muted-foreground overflow-x-auto">
-          {typeof input === 'string' ? input : JSON.stringify(input, null, 2) as string}
-        </pre>
+      {expanded && (
+        <div className="px-3 pb-2 space-y-2">
+          {input != null && (
+            <pre className="text-xs text-muted-foreground overflow-x-auto">
+              {typeof input === 'string' ? input : JSON.stringify(input, null, 2) as string}
+            </pre>
+          )}
+          {output && (
+            <ToolOutputViewer toolName={name} input={input} output={output} />
+          )}
+        </div>
       )}
     </div>
   );

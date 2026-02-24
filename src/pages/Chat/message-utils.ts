@@ -228,20 +228,25 @@ export function extractImages(message: RawMessage | unknown): Array<{ mimeType: 
  * Handles both Anthropic format (tool_use in content array) and
  * OpenAI format (tool_calls array on the message object).
  */
-export function extractToolUse(message: RawMessage | unknown): Array<{ id: string; name: string; input: unknown }> {
+export function extractToolUse(message: RawMessage | unknown): Array<{ id: string; name: string; input: unknown; output?: string }> {
   if (!message || typeof message !== 'object') return [];
   const msg = message as Record<string, unknown>;
-  const tools: Array<{ id: string; name: string; input: unknown }> = [];
+  const tools: Array<{ id: string; name: string; input: unknown; output?: string }> = [];
+
+  // Tool result text enriched by chat store (toolCallId → output text)
+  const toolResults = (msg as { _toolResults?: Record<string, string> })._toolResults;
 
   // Path 1: Anthropic/normalized format — tool_use / toolCall blocks inside content array
   const content = msg.content;
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
       if ((block.type === 'tool_use' || block.type === 'toolCall') && block.name) {
+        const id = block.id || '';
         tools.push({
-          id: block.id || '',
+          id,
           name: block.name,
           input: block.input ?? block.arguments,
+          output: id && toolResults ? toolResults[id] : undefined,
         });
       }
     }
@@ -263,10 +268,12 @@ export function extractToolUse(message: RawMessage | unknown): Array<{ id: strin
         } catch {
           input = fn.arguments;
         }
+        const id = typeof tc.id === 'string' ? tc.id : '';
         tools.push({
-          id: typeof tc.id === 'string' ? tc.id : '',
+          id,
           name,
           input,
+          output: id && toolResults ? toolResults[id] : undefined,
         });
       }
     }

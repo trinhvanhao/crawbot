@@ -28,6 +28,8 @@ export interface RawMessage {
   isError?: boolean;
   /** Local-only: file metadata for user-uploaded attachments (not sent to/from Gateway) */
   _attachedFiles?: AttachedFileMeta[];
+  /** Local-only: tool call id → output text, enriched from tool_result messages */
+  _toolResults?: Record<string, string>;
 }
 
 /** Content block inside a message */
@@ -386,6 +388,46 @@ function collectToolCallPaths(msg: RawMessage, paths: Map<string, string>): void
  *   - [media attached: path (mime) | path] text patterns in tool result output
  *   - Raw file paths in tool result text
  */
+/**
+ * Enrich assistant messages with tool result text output.
+ * Scans tool_result messages, extracts their text, and attaches it to
+ * the preceding assistant message's _toolResults map keyed by toolCallId.
+ */
+function enrichWithToolResultText(messages: RawMessage[]): RawMessage[] {
+  // Build map: toolCallId → output text from tool_result messages
+  const resultMap = new Map<string, string>();
+  for (const msg of messages) {
+    if (!isToolResultRole(msg.role)) continue;
+    const toolCallId = msg.toolCallId;
+    if (!toolCallId) continue;
+    const text = getMessageText(msg.content);
+    if (text.trim()) {
+      resultMap.set(toolCallId, text);
+    }
+  }
+
+  if (resultMap.size === 0) return messages;
+
+  return messages.map((msg) => {
+    if (msg.role !== 'assistant') return msg;
+    const content = msg.content;
+    if (!Array.isArray(content)) return msg;
+
+    const toolResults: Record<string, string> = {};
+    for (const block of content as ContentBlock[]) {
+      if ((block.type === 'tool_use' || block.type === 'toolCall') && block.id) {
+        const output = resultMap.get(block.id);
+        if (output) {
+          toolResults[block.id] = output;
+        }
+      }
+    }
+
+    if (Object.keys(toolResults).length === 0) return msg;
+    return { ...msg, _toolResults: toolResults };
+  });
+}
+
 function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
   const pending: AttachedFileMeta[] = [];
   const toolCallPaths = new Map<string, string>();
@@ -1034,8 +1076,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (result.success && result.result) {
         const data = result.result;
         const rawMessages = Array.isArray(data.messages) ? data.messages as RawMessage[] : [];
-        // Before filtering: attach images/files from tool_result messages to the next assistant message
-        const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
+        // Before filtering: attach tool result text + images/files from tool_result messages
+        const messagesWithToolText = enrichWithToolResultText(rawMessages);
+        const messagesWithToolImages = enrichWithToolResultFiles(messagesWithToolText);
         const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role));
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
