@@ -2,7 +2,7 @@
  * Channels Page
  * Manage messaging channel connections with configuration UI
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Radio,
@@ -28,8 +28,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useChannelsStore } from '@/stores/channels';
 import { useGatewayStore } from '@/stores/gateway';
+import { useAgentsStore } from '@/stores/agents';
 import { StatusBadge, type Status } from '@/components/common/StatusBadge';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import {
@@ -41,61 +44,63 @@ import {
   type Channel,
   type ChannelMeta,
   type ChannelConfigField,
+  type AgentBinding,
 } from '@/types/channel';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 export function Channels() {
   const { t } = useTranslation('channels');
-  const { channels, loading, error, fetchChannels, deleteChannel } = useChannelsStore();
+  const { channels, bindings, loading, error, fetchChannels, fetchBindings, deleteChannel } =
+    useChannelsStore();
   const gatewayStatus = useGatewayStore((state) => state.status);
+  const { agents, fetchAgents } = useAgentsStore();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedChannelType, setSelectedChannelType] = useState<ChannelType | null>(null);
-  const [configuredTypes, setConfiguredTypes] = useState<string[]>([]);
+  const [editChannel, setEditChannel] = useState<Channel | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
-  // Fetch channels on mount
+  // Fetch channels and bindings on mount
   useEffect(() => {
     fetchChannels();
-  }, [fetchChannels]);
-
-  // Fetch configured channel types from config file
-  const fetchConfiguredTypes = useCallback(async () => {
-    try {
-      const result = await window.electron.ipcRenderer.invoke('channel:listConfigured') as {
-        success: boolean;
-        channels?: string[];
-      };
-      if (result.success && result.channels) {
-        setConfiguredTypes(result.channels);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchConfiguredTypes();
-  }, [fetchConfiguredTypes]);
+    fetchBindings();
+    fetchAgents();
+  }, [fetchChannels, fetchBindings, fetchAgents]);
 
   useEffect(() => {
     const unsubscribe = window.electron.ipcRenderer.on('gateway:channel-status', () => {
       fetchChannels();
-      fetchConfiguredTypes();
     });
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     };
-  }, [fetchChannels, fetchConfiguredTypes]);
-
-  // Get channel types to display
-  const displayedChannelTypes = getPrimaryChannels();
+  }, [fetchChannels]);
 
   // Connected/disconnected channel counts
   const connectedCount = channels.filter((c) => c.status === 'connected').length;
+
+  // Find binding for a channel
+  const findBinding = (channel: Channel): AgentBinding | undefined => {
+    const acctId = channel.accountId || 'default';
+    return bindings.find(
+      (b) =>
+        b.match.channel === channel.type && (b.match.accountId || 'default') === acctId
+    );
+  };
+
+  const handleDialogClose = () => {
+    setShowAddDialog(false);
+    setSelectedChannelType(null);
+    setEditChannel(null);
+  };
+
+  const handleChannelAdded = () => {
+    fetchChannels();
+    handleDialogClose();
+  };
 
   if (loading) {
     return (
@@ -111,16 +116,20 @@ export function Channels() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="text-muted-foreground">
-            {t('subtitle')}
-          </p>
+          <p className="text-muted-foreground">{t('subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchChannels}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('refresh')}
           </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button
+            onClick={() => {
+              setEditChannel(null);
+              setSelectedChannelType(null);
+              setShowAddDialog(true);
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t('addChannel')}
           </Button>
@@ -175,9 +184,7 @@ export function Channels() {
         <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/10">
           <CardContent className="py-4 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-yellow-500" />
-            <span className="text-yellow-700 dark:text-yellow-400">
-              {t('gatewayWarning')}
-            </span>
+            <span className="text-yellow-700 dark:text-yellow-400">{t('gatewayWarning')}</span>
           </CardContent>
         </Card>
       )}
@@ -185,9 +192,7 @@ export function Channels() {
       {/* Error Display */}
       {error && (
         <Card className="border-destructive">
-          <CardContent className="py-4 text-destructive">
-            {error}
-          </CardContent>
+          <CardContent className="py-4 text-destructive">{error}</CardContent>
         </Card>
       )}
 
@@ -200,85 +205,77 @@ export function Channels() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {channels.map((channel) => (
-                <ChannelCard
-                  key={channel.id}
-                  channel={channel}
-                  onDelete={() => {
-                    if (confirm(t('deleteConfirm'))) {
-                      deleteChannel(channel.id);
-                    }
-                  }}
-                />
-              ))}
+              {channels.map((channel) => {
+                const binding = findBinding(channel);
+                const agent = binding
+                  ? agents.find((a) => a.id === binding.agentId)
+                  : undefined;
+                return (
+                  <ChannelCard
+                    key={channel.id}
+                    channel={channel}
+                    binding={binding}
+                    agentName={agent?.name || binding?.agentId}
+                    onEdit={() => {
+                      setEditChannel(channel);
+                      setSelectedChannelType(channel.type);
+                      setShowAddDialog(true);
+                    }}
+                    onDelete={() => {
+                      const label =
+                        channel.accountId && channel.accountId !== 'default'
+                          ? channel.accountId
+                          : channel.name;
+                      if (confirm(t('account.deleteConfirm', { name: label }))) {
+                        deleteChannel(channel.id);
+                      }
+                    }}
+                    onToggleEnabled={async (enabled) => {
+                      const acct = channel.accountId || 'default';
+                      await window.electron.ipcRenderer.invoke(
+                        'channel:setEnabled',
+                        channel.type,
+                        enabled,
+                        acct
+                      );
+                      // Show restarting overlay after a short delay
+                      setTimeout(() => setRestarting(true), 300);
+                      try {
+                        await window.electron.ipcRenderer.invoke('gateway:restart');
+                      } catch {
+                        // ignore
+                      }
+                      // Wait a bit for Gateway to come back up
+                      await new Promise((r) => setTimeout(r, 2000));
+                      await fetchChannels();
+                      setRestarting(false);
+                    }}
+                  />
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Available Channels */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t('available')}</CardTitle>
-              <CardDescription>
-                {t('availableDesc')}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {displayedChannelTypes.map((type) => {
-              const meta = CHANNEL_META[type];
-              const isConfigured = configuredTypes.includes(type);
-              return (
-                <button
-                  key={type}
-                  className={`p-4 rounded-lg border hover:bg-accent transition-colors text-left relative ${isConfigured ? 'border-green-500/50 bg-green-500/5' : ''}`}
-                  onClick={() => {
-                    setSelectedChannelType(type);
-                    setShowAddDialog(true);
-                  }}
-                >
-                  <span className="text-3xl">{meta.icon}</span>
-                  <p className="font-medium mt-2">{meta.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {meta.description}
-                  </p>
-                  {isConfigured && (
-                    <Badge className="absolute top-2 right-2 text-xs bg-green-600 hover:bg-green-600">
-                      {t('configuredBadge')}
-                    </Badge>
-                  )}
-                  {!isConfigured && meta.isPlugin && (
-                    <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
-                      {t('pluginBadge')}
-                    </Badge>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Restarting overlay */}
+      {restarting && (
+        <div className="fixed inset-0 z-40 bg-black/30 flex items-center justify-center">
+          <Card className="px-8 py-6 flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="text-sm font-medium">{t('restarting')}</span>
+          </Card>
+        </div>
+      )}
 
-      {/* Add Channel Dialog */}
+      {/* Add / Edit Channel Dialog */}
       {showAddDialog && (
         <AddChannelDialog
           selectedType={selectedChannelType}
           onSelectType={setSelectedChannelType}
-          onClose={() => {
-            setShowAddDialog(false);
-            setSelectedChannelType(null);
-          }}
-          onChannelAdded={() => {
-            fetchChannels();
-            fetchConfiguredTypes();
-            setShowAddDialog(false);
-            setSelectedChannelType(null);
-          }}
+          editChannel={editChannel}
+          onClose={handleDialogClose}
+          onChannelAdded={handleChannelAdded}
         />
       )}
     </div>
@@ -289,33 +286,83 @@ export function Channels() {
 
 interface ChannelCardProps {
   channel: Channel;
+  binding?: AgentBinding;
+  agentName?: string;
+  onEdit: () => void;
   onDelete: () => void;
+  onToggleEnabled: (enabled: boolean) => void;
 }
 
-function ChannelCard({ channel, onDelete }: ChannelCardProps) {
+function ChannelCard({
+  channel,
+  binding,
+  agentName,
+  onEdit,
+  onDelete,
+  onToggleEnabled,
+}: ChannelCardProps) {
+  const { t } = useTranslation('channels');
+  const acctId = channel.accountId || 'default';
+  const isDefault = acctId === 'default';
+  const isEnabled = channel.enabled !== false;
+
   return (
-    <Card>
+    <Card
+      className="cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={onEdit}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">
-              {CHANNEL_ICONS[channel.type]}
-            </span>
+            <span className="text-2xl">{CHANNEL_ICONS[channel.type]}</span>
             <div>
               <CardTitle className="text-base">{channel.name}</CardTitle>
               <CardDescription className="text-xs">
                 {CHANNEL_NAMES[channel.type]}
+                {!isDefault && (
+                  <span className="ml-1 text-muted-foreground">&middot; {acctId}</span>
+                )}
               </CardDescription>
             </div>
           </div>
-          <StatusBadge status={channel.status as Status} />
+          {isEnabled ? (
+            <StatusBadge status={channel.status as Status} />
+          ) : (
+            <Badge variant="destructive" className="text-xs">
+              {t('disabled')}
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {channel.error && (
+        {/* Account badge */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <Badge variant="outline" className="text-xs">
+            {isDefault ? t('account.default') : acctId}
+          </Badge>
+          {binding && agentName && (
+            <Badge variant="secondary" className="text-xs">
+              {agentName}
+            </Badge>
+          )}
+          {!binding && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              {t('binding.noneAssigned')}
+            </Badge>
+          )}
+        </div>
+
+        {isEnabled && channel.error && (
           <p className="text-xs text-destructive mb-3">{channel.error}</p>
         )}
-        <div className="flex gap-2">
+        {/* Stop propagation so interactive elements don't trigger onEdit */}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={onToggleEnabled}
+            className="data-[state=checked]:!bg-green-500 data-[state=unchecked]:!bg-red-400"
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -335,73 +382,110 @@ function ChannelCard({ channel, onDelete }: ChannelCardProps) {
 interface AddChannelDialogProps {
   selectedType: ChannelType | null;
   onSelectType: (type: ChannelType | null) => void;
+  /** When set, the dialog opens in "edit" mode for this channel account. */
+  editChannel?: Channel | null;
   onClose: () => void;
   onChannelAdded: () => void;
 }
 
-function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded }: AddChannelDialogProps) {
+function AddChannelDialog({
+  selectedType,
+  onSelectType,
+  editChannel,
+  onClose,
+  onChannelAdded,
+}: AddChannelDialogProps) {
   const { t } = useTranslation('channels');
-  const { addChannel } = useChannelsStore();
+  const { addChannel, setBinding, removeBinding, fetchBindings, bindings } = useChannelsStore();
+  const { agents } = useAgentsStore();
+  const isEditMode = Boolean(editChannel);
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
-  const [channelName, setChannelName] = useState('');
+  const [accountId, setAccountId] = useState(
+    editChannel?.accountId && editChannel.accountId !== 'default' ? editChannel.accountId : ''
+  );
   const [connecting, setConnecting] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
-  const [isExistingConfig, setIsExistingConfig] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
     errors: string[];
     warnings: string[];
   } | null>(null);
 
+  // Binding state
+  const [bindingAgentId, setBindingAgentId] = useState('');
+
   const meta: ChannelMeta | null = selectedType ? CHANNEL_META[selectedType] : null;
 
-  // Load existing config when a channel type is selected
+  // Load existing config when editing, or reset when adding new
   useEffect(() => {
     if (!selectedType) {
       setConfigValues({});
-      setChannelName('');
-      setIsExistingConfig(false);
-      setChannelName('');
-      setIsExistingConfig(false);
-      // Ensure we clean up any pending QR session if switching away
-      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => { });
+      if (!isEditMode) setAccountId('');
+      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => {});
       return;
     }
 
+    // In add mode (no editChannel), start with a blank form — don't load existing config
+    if (!isEditMode) {
+      setConfigValues({});
+      setLoadingConfig(false);
+      return;
+    }
+
+    // Edit mode: load existing config for this channel + accountId
     let cancelled = false;
     setLoadingConfig(true);
 
     (async () => {
       try {
-        const result = await window.electron.ipcRenderer.invoke(
-          'channel:getFormValues',
-          selectedType
-        ) as { success: boolean; values?: Record<string, string> };
+        const acct = editChannel?.accountId || 'default';
+        const result = (await window.electron.ipcRenderer.invoke(
+          'channel:getAccountFormValues',
+          selectedType,
+          acct
+        )) as { success: boolean; values?: Record<string, string> };
 
         if (cancelled) return;
 
         if (result.success && result.values && Object.keys(result.values).length > 0) {
           setConfigValues(result.values);
-          setIsExistingConfig(true);
         } else {
           setConfigValues({});
-          setIsExistingConfig(false);
         }
       } catch {
         if (!cancelled) {
           setConfigValues({});
-          setIsExistingConfig(false);
         }
       } finally {
         if (!cancelled) setLoadingConfig(false);
       }
     })();
 
-    return () => { cancelled = true; };
-  }, [selectedType]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedType, isEditMode]);
+
+  // Load existing binding when editing
+  useEffect(() => {
+    if (!isEditMode || !editChannel || !selectedType) return;
+    const acctId = editChannel.accountId || 'default';
+    const existing = bindings.find(
+      (b) =>
+        b.match.channel === editChannel.type &&
+        (b.match.accountId || 'default') === acctId
+    );
+    if (existing) {
+      setBindingAgentId(existing.agentId);
+    } else {
+      setBindingAgentId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, editChannel, selectedType, bindings]);
 
   // Listen for WhatsApp QR events
   useEffect(() => {
@@ -415,17 +499,17 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     const onSuccess = async (...args: unknown[]) => {
       const data = args[0] as { accountId?: string } | undefined;
       toast.success(t('toast.whatsappConnected'));
-      const accountId = data?.accountId || channelName.trim() || 'default';
+      const _accountId = data?.accountId || 'default';
       try {
-        const saveResult = await window.electron.ipcRenderer.invoke(
+        const saveResult = (await window.electron.ipcRenderer.invoke(
           'channel:saveConfig',
           'whatsapp',
           { enabled: true }
-        ) as { success?: boolean; error?: string };
+        )) as { success?: boolean; error?: string };
         if (!saveResult?.success) {
           console.error('Failed to save WhatsApp config:', saveResult?.error);
         } else {
-          console.info('Saved WhatsApp config for account:', accountId);
+          console.info('Saved WhatsApp config for account:', _accountId);
         }
       } catch (error) {
         console.error('Failed to save WhatsApp config:', error);
@@ -433,7 +517,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
       // Register the channel locally so it shows up immediately
       addChannel({
         type: 'whatsapp',
-        name: channelName || 'WhatsApp',
+        name: 'WhatsApp',
       }).then(() => {
         // Restart gateway to pick up the new session
         window.electron.ipcRenderer.invoke('gateway:restart').catch(console.error);
@@ -450,17 +534,23 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     };
 
     const removeQrListener = window.electron.ipcRenderer.on('channel:whatsapp-qr', onQr);
-    const removeSuccessListener = window.electron.ipcRenderer.on('channel:whatsapp-success', onSuccess);
-    const removeErrorListener = window.electron.ipcRenderer.on('channel:whatsapp-error', onError);
+    const removeSuccessListener = window.electron.ipcRenderer.on(
+      'channel:whatsapp-success',
+      onSuccess
+    );
+    const removeErrorListener = window.electron.ipcRenderer.on(
+      'channel:whatsapp-error',
+      onError
+    );
 
     return () => {
       if (typeof removeQrListener === 'function') removeQrListener();
       if (typeof removeSuccessListener === 'function') removeSuccessListener();
       if (typeof removeErrorListener === 'function') removeErrorListener();
       // Cancel when unmounting or switching types
-      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => { });
+      window.electron.ipcRenderer.invoke('channel:cancelWhatsAppQr').catch(() => {});
     };
-  }, [selectedType, addChannel, channelName, onChannelAdded, t]);
+  }, [selectedType, addChannel, onChannelAdded, t]);
 
   const handleValidate = async () => {
     if (!selectedType) return;
@@ -469,11 +559,11 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     setValidationResult(null);
 
     try {
-      const result = await window.electron.ipcRenderer.invoke(
+      const result = (await window.electron.ipcRenderer.invoke(
         'channel:validateCredentials',
         selectedType,
         configValues
-      ) as {
+      )) as {
         success: boolean;
         valid?: boolean;
         errors?: string[];
@@ -505,7 +595,6 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     }
   };
 
-
   const handleConnect = async () => {
     if (!selectedType || !meta) return;
 
@@ -515,19 +604,19 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
     try {
       // For QR-based channels, request QR code
       if (meta.connectionType === 'qr') {
-        const accountId = channelName.trim() || 'default';
-        await window.electron.ipcRenderer.invoke('channel:requestWhatsAppQr', accountId);
+        const qrAccountId = accountId.trim() || 'default';
+        await window.electron.ipcRenderer.invoke('channel:requestWhatsAppQr', qrAccountId);
         // The QR code will be set via event listener
         return;
       }
 
       // Step 1: Validate credentials against the actual service API
       if (meta.connectionType === 'token') {
-        const validationResponse = await window.electron.ipcRenderer.invoke(
+        const validationResponse = (await window.electron.ipcRenderer.invoke(
           'channel:validateCredentials',
           selectedType,
           configValues
-        ) as {
+        )) as {
           success: boolean;
           valid?: boolean;
           errors?: string[];
@@ -568,22 +657,37 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
         });
       }
 
-      // Step 2: Save channel configuration via IPC
+      // Step 2: Save channel configuration via account-aware IPC
       const config: Record<string, unknown> = { ...configValues };
-      await window.electron.ipcRenderer.invoke('channel:saveConfig', selectedType, config);
+      const acct = accountId.trim() || 'default';
+      await window.electron.ipcRenderer.invoke(
+        'channel:saveAccountConfig',
+        selectedType,
+        acct,
+        config
+      );
 
-      // Step 3: Add a local channel entry for the UI
-      await addChannel({
-        type: selectedType,
-        name: channelName || CHANNEL_NAMES[selectedType],
-        token: configValues[meta.configFields[0]?.key] || undefined,
-      });
+      // Step 3: In add mode, register a local channel entry for the UI
+      if (!isEditMode) {
+        await addChannel({
+          type: selectedType,
+          name: CHANNEL_NAMES[selectedType],
+          token: configValues[meta.configFields[0]?.key] || undefined,
+        });
+      }
+
+      // Save or remove agent binding
+      if (bindingAgentId) {
+        await setBinding(bindingAgentId, selectedType, acct === 'default' ? undefined : acct);
+      } else if (isEditMode) {
+        // Agent cleared in edit mode — remove any existing binding
+        await removeBinding(selectedType, acct === 'default' ? undefined : acct);
+      }
+      await fetchBindings();
 
       toast.success(t('toast.channelSaved', { name: meta.name }));
 
       // Step 4: Restart the Gateway so it picks up the new channel config
-      // The Gateway watches the config file, but a restart ensures a clean start
-      // especially when adding a channel for the first time.
       try {
         await window.electron.ipcRenderer.invoke('gateway:restart');
         toast.success(t('toast.channelConnecting', { name: meta.name }));
@@ -592,8 +696,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
         toast.info(t('toast.restartManual'));
       }
 
-      // Brief delay so user can see the success state before dialog closes
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Close dialog — channel list will auto-refresh via gateway:channel-status event
       onChannelAdded();
     } catch (error) {
       toast.error(t('toast.configFailed', { error }));
@@ -608,17 +711,14 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
         if (window.electron?.openExternal) {
           window.electron.openExternal(url);
         } else {
-          // Fallback: open in new window
           window.open(url, '_blank');
         }
       } catch (error) {
         console.error('Failed to open docs:', error);
-        // Fallback: open in new window
         window.open(url, '_blank');
       }
     }
   };
-
 
   const isFormValid = () => {
     if (!meta) return false;
@@ -644,15 +744,17 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
           <div>
             <CardTitle>
               {selectedType
-                ? isExistingConfig
+                ? isEditMode
                   ? t('dialog.updateTitle', { name: CHANNEL_NAMES[selectedType] })
                   : t('dialog.configureTitle', { name: CHANNEL_NAMES[selectedType] })
                 : t('dialog.addTitle')}
             </CardTitle>
             <CardDescription>
-              {selectedType && isExistingConfig
+              {selectedType && isEditMode
                 ? t('dialog.existingDesc')
-                : meta ? t(meta.description) : t('dialog.selectDesc')}
+                : meta
+                  ? t(meta.description)
+                  : t('dialog.selectDesc')}
             </CardDescription>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -685,7 +787,11 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
             <div className="text-center space-y-4">
               <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
                 {qrCode.startsWith('data:image') ? (
-                  <img src={qrCode} alt="Scan QR Code" className="w-64 h-64 object-contain" />
+                  <img
+                    src={qrCode}
+                    alt="Scan QR Code"
+                    className="w-64 h-64 object-contain"
+                  />
                 ) : (
                   <div className="w-64 h-64 bg-gray-100 flex items-center justify-center">
                     <QrCode className="h-32 w-32 text-gray-400" />
@@ -696,10 +802,13 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                 {t('dialog.scanQR', { name: meta?.name })}
               </p>
               <div className="flex justify-center gap-2">
-                <Button variant="outline" onClick={() => {
-                  setQrCode(null);
-                  handleConnect(); // Retry
-                }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setQrCode(null);
+                    handleConnect(); // Retry
+                  }}
+                >
                   {t('dialog.refreshCode')}
                 </Button>
               </div>
@@ -708,28 +817,18 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
             // Loading saved config
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">{t('dialog.loadingConfig')}</span>
+              <span className="ml-2 text-sm text-muted-foreground">
+                {t('dialog.loadingConfig')}
+              </span>
             </div>
           ) : (
             // Connection form
             <div className="space-y-4">
-              {/* Existing config hint */}
-              {isExistingConfig && (
-                <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-3 rounded-lg text-sm flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 shrink-0" />
-                  <span>{t('dialog.existingHint')}</span>
-                </div>
-              )}
-
               {/* Instructions */}
               <div className="bg-muted p-4 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm">{t('dialog.howToConnect')}</p>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto text-sm"
-                    onClick={openDocs}
-                  >
+                  <Button variant="link" className="p-0 h-auto text-sm" onClick={openDocs}>
                     <BookOpen className="h-3 w-3 mr-1" />
                     {t('dialog.viewDocs')}
                     <ExternalLink className="h-3 w-3 ml-1" />
@@ -742,16 +841,46 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                 </ol>
               </div>
 
-              {/* Channel name */}
+              {/* Account ID */}
               <div className="space-y-2">
-                <Label htmlFor="name">{t('dialog.channelName')}</Label>
+                <Label htmlFor="accountId">{t('dialog.accountId')}</Label>
                 <Input
-                  id="name"
-                  placeholder={t('dialog.channelNamePlaceholder', { name: meta?.name })}
-                  value={channelName}
-                  onChange={(e) => setChannelName(e.target.value)}
+                  id="accountId"
+                  placeholder={t('dialog.accountIdPlaceholder')}
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {t('dialog.accountIdHelp')}
+                </p>
               </div>
+
+              {/* Agent Binding */}
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">{t('dialog.binding')}</Label>
+
+                {/* Agent dropdown */}
+                <div className="space-y-2">
+                  <Label htmlFor="bindingAgent" className="text-xs">
+                    {t('dialog.bindingAgent')}
+                  </Label>
+                  <Select
+                    value={bindingAgentId}
+                    onChange={(e) => setBindingAgentId(e.target.value)}
+                  >
+                    <option value="">{t('dialog.bindingAgentNone')}</option>
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.identity?.emoji ? `${a.identity.emoji} ` : ''}
+                        {a.name || a.id}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+              </div>
+              <Separator />
 
               {/* Configuration fields */}
               {meta?.configFields.map((field) => (
@@ -767,8 +896,9 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
 
               {/* Validation Results */}
               {validationResult && (
-                <div className={`p-4 rounded-lg text-sm ${validationResult.valid ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-destructive/10 text-destructive'
-                  }`}>
+                <div
+                  className={`p-4 rounded-lg text-sm ${validationResult.valid ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-destructive/10 text-destructive'}`}
+                >
                   <div className="flex items-start gap-2">
                     {validationResult.valid ? (
                       <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -777,7 +907,9 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                     )}
                     <div className="min-w-0">
                       <h4 className="font-medium mb-1">
-                        {validationResult.valid ? t('dialog.credentialsVerified') : t('dialog.validationFailed')}
+                        {validationResult.valid
+                          ? t('dialog.credentialsVerified')
+                          : t('dialog.validationFailed')}
                       </h4>
                       {validationResult.errors.length > 0 && (
                         <ul className="list-disc list-inside space-y-0.5">
@@ -789,13 +921,17 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                       {validationResult.valid && validationResult.warnings.length > 0 && (
                         <div className="mt-1 text-green-600 dark:text-green-400 space-y-0.5">
                           {validationResult.warnings.map((info, i) => (
-                            <p key={i} className="text-xs">{info}</p>
+                            <p key={i} className="text-xs">
+                              {info}
+                            </p>
                           ))}
                         </div>
                       )}
                       {!validationResult.valid && validationResult.warnings.length > 0 && (
                         <div className="mt-2 text-yellow-600 dark:text-yellow-500">
-                          <p className="font-medium text-xs uppercase mb-1">{t('dialog.warnings')}</p>
+                          <p className="font-medium text-xs uppercase mb-1">
+                            {t('dialog.warnings')}
+                          </p>
                           <ul className="list-disc list-inside space-y-0.5">
                             {validationResult.warnings.map((warn, i) => (
                               <li key={i}>{warn}</li>
@@ -817,11 +953,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                 <div className="flex gap-2">
                   {/* Validation Button - Only for token-based channels for now */}
                   {meta?.connectionType === 'token' && (
-                    <Button
-                      variant="secondary"
-                      onClick={handleValidate}
-                      disabled={validating}
-                    >
+                    <Button variant="secondary" onClick={handleValidate} disabled={validating}>
                       {validating ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -835,21 +967,22 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
                       )}
                     </Button>
                   )}
-                  <Button
-                    onClick={handleConnect}
-                    disabled={connecting || !isFormValid()}
-                  >
+                  <Button onClick={handleConnect} disabled={connecting || !isFormValid()}>
                     {connecting ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {meta?.connectionType === 'qr' ? t('dialog.generatingQR') : t('dialog.validatingAndSaving')}
+                        {meta?.connectionType === 'qr'
+                          ? t('dialog.generatingQR')
+                          : t('dialog.validatingAndSaving')}
                       </>
                     ) : meta?.connectionType === 'qr' ? (
                       t('dialog.generateQRCode')
                     ) : (
                       <>
                         <Check className="h-4 w-4 mr-2" />
-                        {isExistingConfig ? t('dialog.updateAndReconnect') : t('dialog.saveAndConnect')}
+                        {isEditMode
+                          ? t('dialog.updateAndReconnect')
+                          : t('dialog.saveAndConnect')}
                       </>
                     )}
                   </Button>
@@ -859,7 +992,7 @@ function AddChannelDialog({ selectedType, onSelectType, onClose, onChannelAdded 
           )}
         </CardContent>
       </Card>
-    </div >
+    </div>
   );
 }
 
@@ -893,25 +1026,16 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
           className="font-mono text-sm"
         />
         {isPassword && (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onToggleSecret}
-          >
+          <Button type="button" variant="outline" size="icon" onClick={onToggleSecret}>
             {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>
         )}
       </div>
       {field.description && (
-        <p className="text-xs text-muted-foreground">
-          {t(field.description)}
-        </p>
+        <p className="text-xs text-muted-foreground">{t(field.description)}</p>
       )}
       {field.envVar && (
-        <p className="text-xs text-muted-foreground">
-          {t('dialog.envVar', { var: field.envVar })}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('dialog.envVar', { var: field.envVar })}</p>
       )}
     </div>
   );

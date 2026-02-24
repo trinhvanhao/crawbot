@@ -37,6 +37,7 @@ export interface Channel {
   type: ChannelType;
   name: string;
   status: ChannelStatus;
+  enabled?: boolean;
   accountId?: string;
   lastActivity?: string;
   error?: string;
@@ -436,6 +437,18 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
     isPlugin: true,
   },
 };
+
+/**
+ * Agent-to-channel binding
+ * Maps an agent to a specific channel account and optional session
+ */
+export interface AgentBinding {
+  agentId: string;
+  match: {
+    channel: string;
+    accountId?: string;
+  };
+}
 
 /**
  * Get primary supported channels (non-plugin, commonly used)

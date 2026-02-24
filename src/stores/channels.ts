@@ -3,7 +3,7 @@
  * Manages messaging channel state
  */
 import { create } from 'zustand';
-import type { Channel, ChannelType } from '../types/channel';
+import type { Channel, ChannelType, AgentBinding } from '../types/channel';
 
 interface AddChannelParams {
   type: ChannelType;
@@ -13,6 +13,7 @@ interface AddChannelParams {
 
 interface ChannelsState {
   channels: Channel[];
+  bindings: AgentBinding[];
   loading: boolean;
   error: string | null;
 
@@ -26,10 +27,15 @@ interface ChannelsState {
   setChannels: (channels: Channel[]) => void;
   updateChannel: (channelId: string, updates: Partial<Channel>) => void;
   clearError: () => void;
+  // Binding actions
+  fetchBindings: () => Promise<void>;
+  setBinding: (agentId: string, channel: string, accountId?: string, session?: string) => Promise<void>;
+  removeBinding: (channel: string, accountId?: string) => Promise<void>;
 }
 
 export const useChannelsStore = create<ChannelsState>((set, get) => ({
   channels: [],
+  bindings: [],
   loading: false,
   error: null,
 
@@ -66,8 +72,14 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
         const data = result.result;
         const channels: Channel[] = [];
 
-        // Parse the complex channels.status response into simple Channel objects
         const channelOrder = data.channelOrder || Object.keys(data.channels || {});
+        const now = Date.now();
+        const RECENT_MS = 10 * 60 * 1000;
+        const hasRecentActivity = (a: { lastInboundAt?: number | null; lastOutboundAt?: number | null; lastConnectedAt?: number | null }) =>
+          (typeof a.lastInboundAt === 'number' && now - a.lastInboundAt < RECENT_MS) ||
+          (typeof a.lastOutboundAt === 'number' && now - a.lastOutboundAt < RECENT_MS) ||
+          (typeof a.lastConnectedAt === 'number' && now - a.lastConnectedAt < RECENT_MS);
+
         for (const channelId of channelOrder) {
           const summary = (data.channels as Record<string, unknown> | undefined)?.[channelId] as Record<string, unknown> | undefined;
           const configured =
@@ -79,51 +91,93 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
           if (!configured) continue;
 
           const accounts = data.channelAccounts?.[channelId] || [];
-          const defaultAccountId = data.channelDefaultAccountId?.[channelId];
-          const primaryAccount =
-            (defaultAccountId ? accounts.find((a) => a.accountId === defaultAccountId) : undefined) ||
-            accounts.find((a) => a.connected === true || a.linked === true) ||
-            accounts[0];
-
-          // Map gateway status to our status format
-          let status: Channel['status'] = 'disconnected';
-          const now = Date.now();
-          const RECENT_MS = 10 * 60 * 1000;
-          const hasRecentActivity = (a: { lastInboundAt?: number | null; lastOutboundAt?: number | null; lastConnectedAt?: number | null }) =>
-            (typeof a.lastInboundAt === 'number' && now - a.lastInboundAt < RECENT_MS) ||
-            (typeof a.lastOutboundAt === 'number' && now - a.lastOutboundAt < RECENT_MS) ||
-            (typeof a.lastConnectedAt === 'number' && now - a.lastConnectedAt < RECENT_MS);
-          const anyConnected = accounts.some((a) => a.connected === true || a.linked === true || hasRecentActivity(a));
-          const anyRunning = accounts.some((a) => a.running === true);
           const summaryError =
             typeof (summary as { error?: string })?.error === 'string'
               ? (summary as { error?: string }).error
               : typeof (summary as { lastError?: string })?.lastError === 'string'
                 ? (summary as { lastError?: string }).lastError
                 : undefined;
-          const anyError =
-            accounts.some((a) => typeof a.lastError === 'string' && a.lastError) || Boolean(summaryError);
 
-          if (anyConnected) {
-            status = 'connected';
-          } else if (anyRunning && !anyError) {
-            status = 'connected';
-          } else if (anyError) {
-            status = 'error';
-          } else if (anyRunning) {
-            status = 'connecting';
+          // Create one Channel entry per account instead of collapsing to one per type
+          if (accounts.length === 0) {
+            // No account data — create a single entry for the channel type
+            channels.push({
+              id: `${channelId}-default`,
+              type: channelId as ChannelType,
+              name: channelId,
+              status: summaryError ? 'error' : 'disconnected',
+              accountId: 'default',
+              error: summaryError,
+            });
+            continue;
           }
 
-          channels.push({
-            id: `${channelId}-${primaryAccount?.accountId || 'default'}`,
-            type: channelId as ChannelType,
-            name: primaryAccount?.name || channelId,
-            status,
-            accountId: primaryAccount?.accountId,
-            error:
-              (typeof primaryAccount?.lastError === 'string' ? primaryAccount.lastError : undefined) ||
-              (typeof summaryError === 'string' ? summaryError : undefined),
-          });
+          for (const account of accounts) {
+            const acctId = account.accountId || 'default';
+            let status: Channel['status'] = 'disconnected';
+            const acctConnected = account.connected === true || account.linked === true || hasRecentActivity(account);
+            const acctRunning = account.running === true;
+            const acctError = (typeof account.lastError === 'string' && account.lastError) || undefined;
+
+            if (acctConnected) {
+              status = 'connected';
+            } else if (acctRunning && !acctError) {
+              status = 'connected';
+            } else if (acctError || summaryError) {
+              status = 'error';
+            } else if (acctRunning) {
+              status = 'connecting';
+            }
+
+            channels.push({
+              id: `${channelId}-${acctId}`,
+              type: channelId as ChannelType,
+              name: account.name || (acctId === 'default' ? channelId : `${channelId} (${acctId})`),
+              status,
+              accountId: acctId,
+              error: acctError || (typeof summaryError === 'string' ? summaryError : undefined),
+            });
+          }
+        }
+
+        // Merge enabled status from config + add disabled accounts not reported by Gateway
+        try {
+          const enabledResult = await window.electron.ipcRenderer.invoke(
+            'channel:getEnabledMap'
+          ) as { success: boolean; map: Record<string, Record<string, boolean>> };
+          if (enabledResult.success && enabledResult.map) {
+            // Set enabled on existing channels
+            for (const ch of channels) {
+              const acctId = ch.accountId || 'default';
+              const typeMap = enabledResult.map[ch.type];
+              if (typeMap && typeof typeMap[acctId] === 'boolean') {
+                ch.enabled = typeMap[acctId];
+              } else {
+                ch.enabled = true;
+              }
+            }
+            // Add disabled accounts that the Gateway didn't report
+            for (const [channelType, acctMap] of Object.entries(enabledResult.map)) {
+              for (const [acctId, enabled] of Object.entries(acctMap)) {
+                if (enabled) continue; // only care about disabled ones
+                const exists = channels.some(
+                  (c) => c.type === channelType && (c.accountId || 'default') === acctId
+                );
+                if (!exists) {
+                  channels.push({
+                    id: `${channelType}-${acctId}`,
+                    type: channelType as ChannelType,
+                    name: acctId === 'default' ? channelType : `${channelType} (${acctId})`,
+                    status: 'disconnected',
+                    accountId: acctId,
+                    enabled: false,
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore — enabled defaults to true
         }
 
         set({ channels, loading: false });
@@ -179,14 +233,27 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
   },
 
   deleteChannel: async (channelId) => {
-    // Extract channel type from the channelId (format: "channelType-accountId")
-    const channelType = channelId.split('-')[0];
+    // Extract channel type and accountId from the channelId (format: "channelType-accountId")
+    const dashIdx = channelId.indexOf('-');
+    const channelType = dashIdx >= 0 ? channelId.slice(0, dashIdx) : channelId;
+    const accountId = dashIdx >= 0 ? channelId.slice(dashIdx + 1) : 'default';
 
     try {
-      // Delete the channel configuration from openclaw.json
-      await window.electron.ipcRenderer.invoke('channel:deleteConfig', channelType);
+      // Delete the account-specific configuration
+      await window.electron.ipcRenderer.invoke('channel:deleteAccountConfig', channelType, accountId);
     } catch (error) {
       console.error('Failed to delete channel config:', error);
+    }
+
+    // Also remove any binding for this account
+    try {
+      await window.electron.ipcRenderer.invoke(
+        'binding:remove',
+        channelType,
+        accountId === 'default' ? undefined : accountId
+      );
+    } catch {
+      // ignore
     }
 
     try {
@@ -203,6 +270,9 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
     // Remove from local state
     set((state) => ({
       channels: state.channels.filter((c) => c.id !== channelId),
+      bindings: state.bindings.filter(
+        (b) => !(b.match.channel === channelType && (b.match.accountId || 'default') === accountId)
+      ),
     }));
   },
 
@@ -268,4 +338,36 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  fetchBindings: async () => {
+    try {
+      const result = await window.electron.ipcRenderer.invoke('binding:get') as {
+        success: boolean;
+        bindings?: AgentBinding[];
+      };
+      if (result.success && result.bindings) {
+        set({ bindings: result.bindings });
+      }
+    } catch {
+      // ignore
+    }
+  },
+
+  setBinding: async (agentId, channel, accountId?, session?) => {
+    try {
+      await window.electron.ipcRenderer.invoke('binding:set', agentId, channel, accountId, session);
+      await get().fetchBindings();
+    } catch (error) {
+      console.error('Failed to set binding:', error);
+    }
+  },
+
+  removeBinding: async (channel, accountId?) => {
+    try {
+      await window.electron.ipcRenderer.invoke('binding:remove', channel, accountId);
+      await get().fetchBindings();
+    } catch (error) {
+      console.error('Failed to remove binding:', error);
+    }
+  },
 }));

@@ -25,9 +25,18 @@ export interface PluginsConfig {
     [key: string]: unknown;
 }
 
+export interface AgentBinding {
+    agentId: string;
+    match: {
+        channel: string;
+        accountId?: string;
+    };
+}
+
 export interface OpenClawConfig {
     channels?: Record<string, ChannelConfigData>;
     plugins?: PluginsConfig;
+    bindings?: AgentBinding[];
     [key: string]: unknown;
 }
 
@@ -76,6 +85,21 @@ export function writeOpenClawConfig(config: OpenClawConfig): void {
 }
 
 /**
+ * Ensure session.dmScope is set to "per-channel-peer" so each channel user
+ * gets an isolated session automatically.  Only sets the value if it is not
+ * already configured (i.e. does not overwrite a user's explicit choice).
+ */
+function ensureSessionDmScope(config: OpenClawConfig): void {
+    if (!config.session || typeof config.session !== 'object') {
+        config.session = {};
+    }
+    const session = config.session as Record<string, unknown>;
+    if (!session.dmScope) {
+        session.dmScope = 'per-channel-peer';
+    }
+}
+
+/**
  * Save channel configuration
  * @param channelType - The channel type (e.g., 'telegram', 'discord')
  * @param config - The channel configuration object
@@ -98,6 +122,7 @@ export function saveChannelConfig(
             ...currentConfig.plugins.entries[channelType],
             enabled: config.enabled ?? true,
         };
+        ensureSessionDmScope(currentConfig);
         writeOpenClawConfig(currentConfig);
         logger.info('Plugin channel config saved', {
             channelType,
@@ -212,6 +237,7 @@ export function saveChannelConfig(
     }
     currentConfig.plugins.entries[channelType].enabled = true;
 
+    ensureSessionDmScope(currentConfig);
     writeOpenClawConfig(currentConfig);
     logger.info('Channel config saved', {
         channelType,
@@ -378,11 +404,28 @@ export function listConfiguredChannels(): string[] {
 }
 
 /**
- * Enable or disable a channel
+ * Enable or disable a channel (or a specific account within a channel).
  */
-export function setChannelEnabled(channelType: string, enabled: boolean): void {
+export function setChannelEnabled(channelType: string, enabled: boolean, accountId?: string): void {
     const currentConfig = readOpenClawConfig();
 
+    // Per-account toggle
+    if (accountId && accountId !== 'default') {
+        if (!currentConfig.channels) currentConfig.channels = {};
+        if (!currentConfig.channels[channelType]) currentConfig.channels[channelType] = {};
+        const channelBlock = currentConfig.channels[channelType] as Record<string, unknown>;
+        if (!channelBlock.accounts || typeof channelBlock.accounts !== 'object') {
+            channelBlock.accounts = {};
+        }
+        const accounts = channelBlock.accounts as Record<string, ChannelConfigData>;
+        if (!accounts[accountId]) accounts[accountId] = {};
+        accounts[accountId].enabled = enabled;
+        writeOpenClawConfig(currentConfig);
+        logger.info('Account enabled toggled', { channelType, accountId, enabled });
+        return;
+    }
+
+    // Top-level channel toggle
     // Plugin-based channels go under plugins.entries
     if (PLUGIN_CHANNELS.includes(channelType)) {
         if (!currentConfig.plugins) {
@@ -395,22 +438,337 @@ export function setChannelEnabled(channelType: string, enabled: boolean): void {
             currentConfig.plugins.entries[channelType] = {};
         }
         currentConfig.plugins.entries[channelType].enabled = enabled;
-        writeOpenClawConfig(currentConfig);
-        console.log(`Set plugin channel ${channelType} enabled: ${enabled}`);
+    }
+
+    if (!currentConfig.channels) {
+        currentConfig.channels = {};
+    }
+    if (!currentConfig.channels[channelType]) {
+        currentConfig.channels[channelType] = {};
+    }
+    currentConfig.channels[channelType].enabled = enabled;
+
+    writeOpenClawConfig(currentConfig);
+    logger.info('Channel enabled toggled', { channelType, enabled });
+}
+
+/**
+ * Get enabled status for all channel accounts.
+ * Returns { channelType: { accountId: boolean } }.
+ * 'default' key is used for the top-level channel config.
+ */
+export function getChannelEnabledMap(): Record<string, Record<string, boolean>> {
+    const config = readOpenClawConfig();
+    const result: Record<string, Record<string, boolean>> = {};
+
+    if (!config.channels) return result;
+
+    for (const [channelType, channelBlock] of Object.entries(config.channels)) {
+        if (!channelBlock || typeof channelBlock !== 'object') continue;
+        const block = channelBlock as Record<string, unknown>;
+        result[channelType] = {};
+
+        // Top-level enabled (check both channels.<type>.enabled and plugins.entries.<type>.enabled)
+        let topEnabled = true;
+        if (typeof block.enabled === 'boolean') {
+            topEnabled = block.enabled;
+        }
+        if (PLUGIN_CHANNELS.includes(channelType)) {
+            const pluginEntry = (config.plugins?.entries as Record<string, Record<string, unknown>> | undefined)?.[channelType];
+            if (pluginEntry && typeof pluginEntry.enabled === 'boolean') {
+                topEnabled = pluginEntry.enabled;
+            }
+        }
+        result[channelType]['default'] = topEnabled;
+
+        // Per-account enabled
+        const accounts = block.accounts as Record<string, Record<string, unknown>> | undefined;
+        if (accounts && typeof accounts === 'object') {
+            for (const [acctId, acctBlock] of Object.entries(accounts)) {
+                if (!acctBlock || typeof acctBlock !== 'object') continue;
+                result[channelType][acctId] = typeof acctBlock.enabled === 'boolean' ? acctBlock.enabled : true;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Save configuration for a specific channel account.
+ * If accountId is empty or 'default', delegates to saveChannelConfig (top-level).
+ * Otherwise writes to channels.<type>.accounts.<accountId>.
+ */
+export function saveAccountConfig(
+    channelType: string,
+    accountId: string,
+    config: ChannelConfigData
+): void {
+    if (!accountId || accountId === 'default') {
+        saveChannelConfig(channelType, config);
+        return;
+    }
+
+    const currentConfig = readOpenClawConfig();
+
+    // Plugin-only channels (e.g. WhatsApp) don't support sub-accounts via channels.*
+    if (PLUGIN_CHANNELS.includes(channelType)) {
+        logger.warn('Plugin channels do not support sub-accounts', { channelType, accountId });
+        saveChannelConfig(channelType, config);
         return;
     }
 
     if (!currentConfig.channels) {
         currentConfig.channels = {};
     }
-
     if (!currentConfig.channels[channelType]) {
         currentConfig.channels[channelType] = {};
     }
 
-    currentConfig.channels[channelType].enabled = enabled;
+    const channelBlock = currentConfig.channels[channelType] as Record<string, unknown>;
+    if (!channelBlock.accounts || typeof channelBlock.accounts !== 'object') {
+        channelBlock.accounts = {};
+    }
+    const accounts = channelBlock.accounts as Record<string, ChannelConfigData>;
+
+    // Apply the same transforms as saveChannelConfig for specific channel types
+    let transformedConfig: ChannelConfigData = { ...config };
+
+    if (channelType === 'telegram') {
+        const { allowedUsers, ...restConfig } = config;
+        transformedConfig = { ...restConfig };
+        if (allowedUsers && typeof allowedUsers === 'string') {
+            const users = (allowedUsers as string).split(',')
+                .map(u => u.trim())
+                .filter(u => u.length > 0);
+            if (users.length > 0) {
+                transformedConfig.allowFrom = users;
+            }
+        }
+    }
+
+    if (channelType === 'discord') {
+        const { guildId, channelId, ...restConfig } = config;
+        transformedConfig = { ...restConfig };
+        transformedConfig.groupPolicy = 'allowlist';
+        transformedConfig.dm = { enabled: false };
+        transformedConfig.retry = { attempts: 3, minDelayMs: 500, maxDelayMs: 30000, jitter: 0.1 };
+        if (guildId && typeof guildId === 'string' && guildId.trim()) {
+            const guildConfig: Record<string, unknown> = { users: ['*'], requireMention: true };
+            if (channelId && typeof channelId === 'string' && channelId.trim()) {
+                guildConfig.channels = { [channelId.trim()]: { allow: true, requireMention: true } };
+            } else {
+                guildConfig.channels = { '*': { allow: true, requireMention: true } };
+            }
+            transformedConfig.guilds = { [guildId.trim()]: guildConfig };
+        }
+    }
+
+    accounts[accountId] = {
+        ...accounts[accountId],
+        ...transformedConfig,
+        enabled: transformedConfig.enabled ?? true,
+    };
+
+    // Ensure channel plugin is enabled
+    if (!currentConfig.plugins) currentConfig.plugins = {};
+    if (!currentConfig.plugins.entries) currentConfig.plugins.entries = {};
+    if (!currentConfig.plugins.entries[channelType]) currentConfig.plugins.entries[channelType] = {};
+    currentConfig.plugins.entries[channelType].enabled = true;
+
+    ensureSessionDmScope(currentConfig);
     writeOpenClawConfig(currentConfig);
-    console.log(`Set channel ${channelType} enabled: ${enabled}`);
+    logger.info('Account config saved', { channelType, accountId });
+}
+
+/**
+ * Delete a specific channel account configuration.
+ * If accountId is empty or 'default', delegates to deleteChannelConfig.
+ * Otherwise removes channels.<type>.accounts.<accountId> and any matching binding.
+ */
+export function deleteAccountConfig(channelType: string, accountId: string): void {
+    if (!accountId || accountId === 'default') {
+        deleteChannelConfig(channelType);
+        return;
+    }
+
+    const currentConfig = readOpenClawConfig();
+    const channelBlock = currentConfig.channels?.[channelType] as Record<string, unknown> | undefined;
+    const accounts = channelBlock?.accounts as Record<string, unknown> | undefined;
+
+    if (accounts?.[accountId]) {
+        delete accounts[accountId];
+        // Clean up empty accounts object
+        if (Object.keys(accounts).length === 0 && channelBlock) {
+            delete channelBlock.accounts;
+        }
+    }
+
+    // Also remove any matching binding
+    if (currentConfig.bindings) {
+        currentConfig.bindings = currentConfig.bindings.filter(
+            b => !(b.match.channel === channelType && b.match.accountId === accountId)
+        );
+        if (currentConfig.bindings.length === 0) {
+            delete currentConfig.bindings;
+        }
+    }
+
+    writeOpenClawConfig(currentConfig);
+    logger.info('Account config deleted', { channelType, accountId });
+}
+
+/**
+ * Get form-friendly values for a specific channel account.
+ * If accountId is empty or 'default', delegates to getChannelFormValues.
+ */
+export function getAccountFormValues(
+    channelType: string,
+    accountId: string
+): Record<string, string> | undefined {
+    if (!accountId || accountId === 'default') {
+        return getChannelFormValues(channelType);
+    }
+
+    const config = readOpenClawConfig();
+    const channelBlock = config.channels?.[channelType] as Record<string, unknown> | undefined;
+    const accounts = channelBlock?.accounts as Record<string, Record<string, unknown>> | undefined;
+    const saved = accounts?.[accountId];
+    if (!saved) return undefined;
+
+    const values: Record<string, string> = {};
+
+    if (channelType === 'discord') {
+        if (saved.token && typeof saved.token === 'string') values.token = saved.token;
+        const guilds = saved.guilds as Record<string, Record<string, unknown>> | undefined;
+        if (guilds) {
+            const guildIds = Object.keys(guilds);
+            if (guildIds.length > 0) {
+                values.guildId = guildIds[0];
+                const channels = guilds[guildIds[0]]?.channels as Record<string, unknown> | undefined;
+                if (channels) {
+                    const channelIds = Object.keys(channels).filter(id => id !== '*');
+                    if (channelIds.length > 0) values.channelId = channelIds[0];
+                }
+            }
+        }
+    } else if (channelType === 'telegram') {
+        if (Array.isArray(saved.allowFrom)) {
+            values.allowedUsers = (saved.allowFrom as string[]).join(', ');
+        }
+        for (const [key, value] of Object.entries(saved)) {
+            if (typeof value === 'string' && key !== 'enabled') values[key] = value;
+        }
+    } else {
+        for (const [key, value] of Object.entries(saved)) {
+            if (typeof value === 'string' && key !== 'enabled') values[key] = value;
+        }
+    }
+
+    return Object.keys(values).length > 0 ? values : undefined;
+}
+
+/**
+ * List all accounts for a given channel type.
+ * Returns the default account (if top-level config has meaningful keys) plus any sub-accounts.
+ */
+export function listChannelAccounts(
+    channelType: string
+): Array<{ accountId: string; isDefault: boolean }> {
+    const config = readOpenClawConfig();
+    const result: Array<{ accountId: string; isDefault: boolean }> = [];
+
+    const channelBlock = config.channels?.[channelType] as Record<string, unknown> | undefined;
+
+    // Check if top-level has meaningful config (e.g. botToken, token)
+    if (channelBlock) {
+        const meaningfulKeys = Object.keys(channelBlock).filter(
+            k => k !== 'enabled' && k !== 'accounts'
+        );
+        if (meaningfulKeys.length > 0) {
+            result.push({ accountId: 'default', isDefault: true });
+        }
+    }
+
+    // Also check plugin-only channels
+    if (PLUGIN_CHANNELS.includes(channelType) && result.length === 0) {
+        const pluginEntry = config.plugins?.entries?.[channelType];
+        if (pluginEntry?.enabled) {
+            result.push({ accountId: 'default', isDefault: true });
+        }
+    }
+
+    // Add sub-accounts
+    const accounts = channelBlock?.accounts as Record<string, unknown> | undefined;
+    if (accounts) {
+        for (const accountId of Object.keys(accounts)) {
+            result.push({ accountId, isDefault: false });
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Get all bindings from config.
+ */
+export function getBindings(): AgentBinding[] {
+    const config = readOpenClawConfig();
+    return config.bindings || [];
+}
+
+/**
+ * Set (upsert) a binding for a channel + accountId combination.
+ */
+export function setBinding(
+    agentId: string,
+    channel: string,
+    accountId?: string,
+    _session?: string
+): void {
+    const config = readOpenClawConfig();
+    if (!config.bindings) config.bindings = [];
+
+    // Find existing binding for this channel+accountId
+    const idx = config.bindings.findIndex(
+        b => b.match.channel === channel && (b.match.accountId || undefined) === (accountId || undefined)
+    );
+
+    const binding: AgentBinding = {
+        agentId,
+        match: { channel },
+    };
+    if (accountId && accountId !== 'default') binding.match.accountId = accountId;
+    // Note: session is not part of the OpenClaw binding schema.
+    // Session routing is handled via the session key format (agent:<id>:<session>).
+
+    if (idx >= 0) {
+        config.bindings[idx] = binding;
+    } else {
+        config.bindings.push(binding);
+    }
+
+    writeOpenClawConfig(config);
+    logger.info('Binding set', { agentId, channel, accountId });
+}
+
+/**
+ * Remove a binding for a channel + accountId combination.
+ */
+export function removeBinding(channel: string, accountId?: string): void {
+    const config = readOpenClawConfig();
+    if (!config.bindings) return;
+
+    config.bindings = config.bindings.filter(
+        b => !(b.match.channel === channel && (b.match.accountId || undefined) === (accountId || undefined))
+    );
+
+    if (config.bindings.length === 0) {
+        delete config.bindings;
+    }
+
+    writeOpenClawConfig(config);
+    logger.info('Binding removed', { channel, accountId });
 }
 
 export interface ValidationResult {

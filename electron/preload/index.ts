@@ -94,9 +94,18 @@ const electronAPI = {
         'channel:deleteConfig',
         'channel:listConfigured',
         'channel:setEnabled',
+        'channel:getEnabledMap',
         'channel:validate',
         'channel:validate',
         'channel:validateCredentials',
+        // Channel Accounts & Bindings
+        'channel:saveAccountConfig',
+        'channel:deleteAccountConfig',
+        'channel:getAccountFormValues',
+        'channel:listAccounts',
+        'binding:get',
+        'binding:set',
+        'binding:remove',
         // WhatsApp
         'channel:requestWhatsAppQr',
         'channel:cancelWhatsAppQr',

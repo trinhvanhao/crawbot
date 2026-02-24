@@ -55,7 +55,8 @@
     "title": "Channel Bindings",
     "description": "Channels this agent is connected to",
     "noChannels": "No channels configured",
-    "noChannelsDesc": "Configure channels in the Channels page first."
+    "noChannelsDesc": "Configure channels in the Channels page first.",
+    "bound": "Bound"
   },
   "create": {
     "title": "Create New Agent",

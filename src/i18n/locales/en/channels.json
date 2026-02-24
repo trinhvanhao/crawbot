@@ -9,10 +9,14 @@
         "disconnected": "Disconnected"
     },
     "gatewayWarning": "Gateway service is not running. Channels cannot connect.",
+    "configured": "Configured Channels",
+    "configuredDesc": "Your active channel accounts",
+    "configuredBadge": "Configured",
     "available": "Available Channels",
     "availableDesc": "Connect a new channel",
     "showAll": "Show All",
     "pluginBadge": "Plugin",
+    "deleteConfirm": "Delete this channel? This cannot be undone.",
     "toast": {
         "whatsappConnected": "WhatsApp connected successfully",
         "whatsappFailed": "WhatsApp connection failed: {{error}}",
@@ -48,7 +52,22 @@
         "generateQRCode": "Generate QR Code",
         "updateAndReconnect": "Update & Reconnect",
         "saveAndConnect": "Save & Connect",
-        "envVar": "Environment Variable: {{var}}"
+        "envVar": "Environment Variable: {{var}}",
+        "accountId": "Account ID",
+        "accountIdPlaceholder": "e.g. annie-bot (leave empty for default)",
+        "accountIdHelp": "Enter a unique ID for additional accounts of the same type.",
+        "binding": "Agent Binding (Optional)",
+        "bindingAgent": "Assigned Agent",
+        "bindingAgentNone": "None"
+    },
+    "binding": {
+        "noneAssigned": "No agent assigned"
+    },
+    "disabled": "Disabled",
+    "restarting": "Gateway restarting...",
+    "account": {
+        "default": "Default",
+        "deleteConfirm": "Delete account \"{{name}}\"? This will also remove its agent binding."
     },
     "meta": {
         "telegram": {

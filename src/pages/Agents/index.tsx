@@ -902,9 +902,13 @@ function AgentFilesTab({
 
 // ─── Channels Tab ────────────────────────────────────────────────────
 
-function AgentChannelsTab() {
+function AgentChannelsTab({ selectedAgent }: { selectedAgent: Agent }) {
   const { t } = useTranslation('agents');
   const [channels, setChannels] = useState<string[]>([]);
+  const [bindings, setBindings] = useState<Array<{
+    agentId: string;
+    match: { channel: string; accountId?: string; session?: string };
+  }>>([]);
 
   useEffect(() => {
     const fetchChannels = async () => {
@@ -923,6 +927,43 @@ function AgentChannelsTab() {
     fetchChannels();
   }, []);
 
+  useEffect(() => {
+    const fetchBindings = async () => {
+      try {
+        const result = (await window.electron.ipcRenderer.invoke('binding:get')) as {
+          success: boolean;
+          bindings?: typeof bindings;
+        };
+        if (result.success && result.bindings) {
+          setBindings(result.bindings);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchBindings();
+  }, []);
+
+  // Filter bindings to only those matching this agent
+  const agentBindings = bindings.filter((b) => b.agentId === selectedAgent.id);
+
+  const handleRemoveBinding = async (channel: string, accountId?: string) => {
+    try {
+      await window.electron.ipcRenderer.invoke('binding:remove', channel, accountId);
+      setBindings((prev) =>
+        prev.filter(
+          (b) =>
+            !(
+              b.match.channel === channel &&
+              (b.match.accountId || undefined) === (accountId || undefined)
+            )
+        )
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -934,7 +975,7 @@ function AgentChannelsTab() {
           <CardDescription>{t('channels.description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          {channels.length === 0 ? (
+          {channels.length === 0 && agentBindings.length === 0 ? (
             <div className="text-center py-8">
               <Radio className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">{t('channels.noChannels')}</p>
@@ -944,18 +985,56 @@ function AgentChannelsTab() {
             </div>
           ) : (
             <div className="space-y-2">
-              {channels.map((channelType) => (
+              {/* Show agent-specific bindings first */}
+              {agentBindings.map((binding) => (
                 <div
-                  key={channelType}
-                  className="flex items-center gap-3 p-3 rounded-lg border"
+                  key={`${binding.match.channel}-${binding.match.accountId || 'default'}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5"
                 >
-                  <Radio className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium capitalize">{channelType}</span>
-                  <Badge variant="secondary" className="ml-auto">
-                    {t('enabled')}
+                  <Radio className="h-4 w-4 text-primary" />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium capitalize">
+                      {binding.match.channel}
+                    </span>
+                    {binding.match.accountId && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({binding.match.accountId})
+                      </span>
+                    )}
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {t('channels.bound')}
                   </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                    onClick={() =>
+                      handleRemoveBinding(binding.match.channel, binding.match.accountId)
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               ))}
+              {/* Show all configured channels */}
+              {channels
+                .filter(
+                  (ct) =>
+                    !agentBindings.some((b) => b.match.channel === ct && !b.match.accountId)
+                )
+                .map((channelType) => (
+                  <div
+                    key={channelType}
+                    className="flex items-center gap-3 p-3 rounded-lg border"
+                  >
+                    <Radio className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium capitalize">{channelType}</span>
+                    <Badge variant="secondary" className="ml-auto">
+                      {t('enabled')}
+                    </Badge>
+                  </div>
+                ))}
             </div>
           )}
         </CardContent>
@@ -1156,7 +1235,7 @@ export function Agents() {
                       />
                     </TabsContent>
                     <TabsContent value="channels">
-                      <AgentChannelsTab />
+                      <AgentChannelsTab selectedAgent={selectedAgent} />
                     </TabsContent>
                   </Tabs>
                 </CardContent>

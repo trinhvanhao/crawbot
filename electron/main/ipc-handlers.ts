@@ -44,6 +44,14 @@ import {
   setChannelEnabled,
   validateChannelConfig,
   validateChannelCredentials,
+  saveAccountConfig,
+  deleteAccountConfig,
+  getAccountFormValues,
+  listChannelAccounts,
+  getBindings,
+  setBinding,
+  removeBinding,
+  getChannelEnabledMap,
 } from '../utils/channel-config';
 import { checkUvInstalled, installUv, setupManagedPython } from '../utils/uv-setup';
 import { updateSkillConfig, getSkillConfig, getAllSkillConfigs } from '../utils/skill-config';
@@ -932,13 +940,22 @@ function registerOpenClawHandlers(): void {
   });
 
   // Enable or disable a channel
-  ipcMain.handle('channel:setEnabled', async (_, channelType: string, enabled: boolean) => {
+  ipcMain.handle('channel:setEnabled', async (_, channelType: string, enabled: boolean, accountId?: string) => {
     try {
-      setChannelEnabled(channelType, enabled);
+      setChannelEnabled(channelType, enabled, accountId);
       return { success: true };
     } catch (error) {
       console.error('Failed to set channel enabled:', error);
       return { success: false, error: String(error) };
+    }
+  });
+
+  // Get enabled map for all channel accounts
+  ipcMain.handle('channel:getEnabledMap', async () => {
+    try {
+      return { success: true, map: getChannelEnabledMap() };
+    } catch (error) {
+      return { success: false, error: String(error), map: {} };
     }
   });
 
@@ -961,6 +978,83 @@ function registerOpenClawHandlers(): void {
     } catch (error) {
       console.error('Failed to validate channel credentials:', error);
       return { success: false, valid: false, errors: [String(error)], warnings: [] };
+    }
+  });
+
+  // Save account-specific channel configuration
+  ipcMain.handle('channel:saveAccountConfig', async (_, channelType: string, accountId: string, config: Record<string, unknown>) => {
+    try {
+      saveAccountConfig(channelType, accountId, config);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save account config:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Delete account-specific channel configuration
+  ipcMain.handle('channel:deleteAccountConfig', async (_, channelType: string, accountId: string) => {
+    try {
+      deleteAccountConfig(channelType, accountId);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to delete account config:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get form values for a specific account
+  ipcMain.handle('channel:getAccountFormValues', async (_, channelType: string, accountId: string) => {
+    try {
+      const values = getAccountFormValues(channelType, accountId);
+      return { success: true, values };
+    } catch (error) {
+      console.error('Failed to get account form values:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // List all accounts for a channel type
+  ipcMain.handle('channel:listAccounts', async (_, channelType: string) => {
+    try {
+      const accounts = listChannelAccounts(channelType);
+      return { success: true, accounts };
+    } catch (error) {
+      console.error('Failed to list channel accounts:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get all bindings
+  ipcMain.handle('binding:get', async () => {
+    try {
+      const bindings = getBindings();
+      return { success: true, bindings };
+    } catch (error) {
+      console.error('Failed to get bindings:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Set a binding
+  ipcMain.handle('binding:set', async (_, agentId: string, channel: string, accountId?: string, session?: string) => {
+    try {
+      setBinding(agentId, channel, accountId, session);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to set binding:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Remove a binding
+  ipcMain.handle('binding:remove', async (_, channel: string, accountId?: string) => {
+    try {
+      removeBinding(channel, accountId);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to remove binding:', error);
+      return { success: false, error: String(error) };
     }
   });
 }
