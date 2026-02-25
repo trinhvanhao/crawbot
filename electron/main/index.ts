@@ -2,7 +2,7 @@
  * Electron Main Process Entry
  * Manages window creation, system tray, and IPC handlers
  */
-import { app, BrowserWindow, nativeImage, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, Menu, nativeImage, session, shell } from 'electron';
 import { join } from 'path';
 import { GatewayManager } from '../gateway/manager';
 import { registerIpcHandlers } from './ipc-handlers';
@@ -89,6 +89,60 @@ function createWindow(startMinimized = false): BrowserWindow {
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Enable right-click context menu with standard editing actions
+  win.webContents.on('context-menu', (_event, params) => {
+    const menuItems: Electron.MenuItemConstructorOptions[] = [];
+
+    // Spell-check suggestions
+    if (params.misspelledWord && params.dictionarySuggestions.length > 0) {
+      for (const suggestion of params.dictionarySuggestions) {
+        menuItems.push({
+          label: suggestion,
+          click: () => win.webContents.replaceMisspelling(suggestion),
+        });
+      }
+      menuItems.push({ type: 'separator' });
+    }
+
+    // Text editing actions (shown when right-clicking an editable field)
+    if (params.isEditable) {
+      menuItems.push(
+        { label: 'Undo', role: 'undo', enabled: params.editFlags.canUndo },
+        { label: 'Redo', role: 'redo', enabled: params.editFlags.canRedo },
+        { type: 'separator' },
+        { label: 'Cut', role: 'cut', enabled: params.editFlags.canCut },
+        { label: 'Copy', role: 'copy', enabled: params.editFlags.canCopy },
+        { label: 'Paste', role: 'paste', enabled: params.editFlags.canPaste },
+        { label: 'Select All', role: 'selectAll', enabled: params.editFlags.canSelectAll },
+      );
+    } else if (params.selectionText) {
+      // Non-editable area with selected text
+      menuItems.push(
+        { label: 'Copy', role: 'copy', enabled: params.editFlags.canCopy },
+        { label: 'Select All', role: 'selectAll' },
+      );
+    }
+
+    // Link actions
+    if (params.linkURL) {
+      if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+      menuItems.push(
+        {
+          label: 'Open Link in Browser',
+          click: () => shell.openExternal(params.linkURL),
+        },
+        {
+          label: 'Copy Link Address',
+          click: () => clipboard.writeText(params.linkURL),
+        },
+      );
+    }
+
+    if (menuItems.length > 0) {
+      Menu.buildFromTemplate(menuItems).popup();
+    }
   });
 
   // Load the app
