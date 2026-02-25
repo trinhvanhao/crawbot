@@ -71,13 +71,26 @@ function findFile(dir: string, name: string, depth: number): string | null {
   return null;
 }
 
+function resolveGeminiCliDir(geminiPath: string): string {
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(geminiPath)) {
+    // On Windows, npm global installs create .cmd/.bat wrappers instead of symlinks.
+    // realpathSync won't resolve them, so dirname(dirname()) would land in the wrong
+    // directory. The package lives at {npmPrefix}/node_modules/@google/gemini-cli.
+    const npmPrefix = dirname(geminiPath);
+    const packageDir = join(npmPrefix, 'node_modules', '@google', 'gemini-cli');
+    if (existsSync(packageDir)) return packageDir;
+  }
+  // Unix: symlink → realpathSync resolves to dist/index.js → dirname×2 = package root
+  const resolvedPath = realpathSync(geminiPath);
+  return dirname(dirname(resolvedPath));
+}
+
 function extractGeminiCliCredentials(): { clientId: string; clientSecret: string } | null {
   try {
     const geminiPath = findInPath('gemini');
     if (!geminiPath) return null;
 
-    const resolvedPath = realpathSync(geminiPath);
-    const geminiCliDir = dirname(dirname(resolvedPath));
+    const geminiCliDir = resolveGeminiCliDir(geminiPath);
 
     const searchPaths = [
       join(geminiCliDir, 'node_modules', '@google', 'gemini-cli-core', 'dist', 'src', 'code_assist', 'oauth2.js'),
