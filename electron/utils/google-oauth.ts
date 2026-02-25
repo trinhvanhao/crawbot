@@ -45,9 +45,43 @@ function resolveEnv(keys: string[]): string | undefined {
   return undefined;
 }
 
+function getExtraMacOsSearchDirs(): string[] {
+  if (process.platform !== 'darwin') return [];
+  const dirs: string[] = [];
+  // Homebrew bin directories (Apple Silicon + Intel)
+  dirs.push('/opt/homebrew/bin', '/usr/local/bin');
+  // Common npm global bin locations
+  dirs.push(join(homedir(), '.npm-global', 'bin'));
+  // nvm current version bin
+  const nvmDir = process.env.NVM_DIR || join(homedir(), '.nvm');
+  const nvmCurrent = join(nvmDir, 'current', 'bin');
+  if (existsSync(nvmCurrent)) dirs.push(nvmCurrent);
+  // fnm, volta, asdf shims
+  dirs.push(
+    join(homedir(), '.local', 'bin'),
+    join(homedir(), 'Library', 'Application Support', 'fnm', 'current', 'bin'),
+    join(homedir(), '.volta', 'bin'),
+    join(homedir(), '.asdf', 'shims'),
+  );
+  // Homebrew Cellar node bin (versioned) — scan for any installed node version
+  for (const cellarBase of ['/opt/homebrew/Cellar/node', '/usr/local/Cellar/node']) {
+    try {
+      for (const ver of readdirSync(cellarBase)) {
+        dirs.push(join(cellarBase, ver, 'bin'));
+      }
+    } catch { /* ignore */ }
+  }
+  return dirs;
+}
+
 function findInPath(name: string): string | null {
   const exts = process.platform === 'win32' ? ['.cmd', '.bat', '.exe', ''] : [''];
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+  const searchDirs = (process.env.PATH ?? '').split(delimiter);
+  // On macOS, Electron GUI apps get a minimal PATH; add common locations
+  for (const extra of getExtraMacOsSearchDirs()) {
+    if (!searchDirs.includes(extra)) searchDirs.push(extra);
+  }
+  for (const dir of searchDirs) {
     for (const ext of exts) {
       const p = join(dir, name + ext);
       if (existsSync(p)) return p;
@@ -85,12 +119,53 @@ function resolveGeminiCliDir(geminiPath: string): string {
   return dirname(dirname(resolvedPath));
 }
 
+/**
+ * On macOS, find the gemini-cli package directory by checking well-known
+ * npm/node_modules global roots. This is a fallback when findInPath('gemini')
+ * can't locate the binary (e.g. Electron GUI PATH doesn't include it).
+ */
+function findGeminiCliDirDirectly(): string | null {
+  const candidates: string[] = [];
+  // npm global roots
+  candidates.push(
+    join(homedir(), '.npm-global', 'lib', 'node_modules', '@google', 'gemini-cli'),
+    '/usr/local/lib/node_modules/@google/gemini-cli',
+    '/opt/homebrew/lib/node_modules/@google/gemini-cli',
+  );
+  // nvm
+  const nvmDir = process.env.NVM_DIR || join(homedir(), '.nvm');
+  const nvmCurrent = join(nvmDir, 'current', 'lib', 'node_modules', '@google', 'gemini-cli');
+  candidates.push(nvmCurrent);
+  // volta
+  candidates.push(join(homedir(), '.volta', 'tools', 'image', 'packages', '@google', 'gemini-cli'));
+  // Homebrew Cellar node (versioned)
+  for (const cellarBase of ['/opt/homebrew/Cellar/node', '/usr/local/Cellar/node']) {
+    try {
+      for (const ver of readdirSync(cellarBase)) {
+        candidates.push(join(cellarBase, ver, 'lib', 'node_modules', '@google', 'gemini-cli'));
+      }
+    } catch { /* ignore */ }
+  }
+  for (const dir of candidates) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+  }
+  return null;
+}
+
 function extractGeminiCliCredentials(): { clientId: string; clientSecret: string } | null {
   try {
-    const geminiPath = findInPath('gemini');
-    if (!geminiPath) return null;
+    let geminiCliDir: string | null = null;
 
-    const geminiCliDir = resolveGeminiCliDir(geminiPath);
+    const geminiPath = findInPath('gemini');
+    if (geminiPath) {
+      geminiCliDir = resolveGeminiCliDir(geminiPath);
+    }
+
+    // Fallback: search well-known npm global roots directly
+    if (!geminiCliDir || !existsSync(geminiCliDir)) {
+      geminiCliDir = findGeminiCliDirDirectly();
+    }
+    if (!geminiCliDir) return null;
 
     const searchPaths = [
       join(geminiCliDir, 'node_modules', '@google', 'gemini-cli-core', 'dist', 'src', 'code_assist', 'oauth2.js'),
@@ -123,12 +198,22 @@ function resolveOAuthClientConfig(): { clientId: string; clientSecret?: string }
   const envClientId = resolveEnv(CLIENT_ID_KEYS);
   const envClientSecret = resolveEnv(CLIENT_SECRET_KEYS);
   if (envClientId) {
+    logger.info('Using Google OAuth credentials from environment variables');
     return { clientId: envClientId, clientSecret: envClientSecret };
   }
 
+  logger.info('No OAuth env vars found, attempting to extract from Gemini CLI installation...');
   const extracted = extractGeminiCliCredentials();
-  if (extracted) return extracted;
+  if (extracted) {
+    logger.info('Successfully extracted Google OAuth credentials from Gemini CLI');
+    return extracted;
+  }
 
+  logger.error(
+    'Failed to find Gemini CLI credentials. ' +
+    `PATH dirs searched: ${(process.env.PATH ?? '').split(delimiter).length} entries. ` +
+    `Platform: ${process.platform}`,
+  );
   throw new Error(
     'Google OAuth credentials not found. Install Gemini CLI ' +
     '(npm install -g @google/gemini-cli) or set GEMINI_CLI_OAUTH_CLIENT_ID ' +

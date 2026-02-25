@@ -484,7 +484,7 @@ function AddChannelDialog({
     } else {
       setBindingAgentId('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isEditMode, editChannel, selectedType, bindings]);
 
   // Listen for WhatsApp QR events
