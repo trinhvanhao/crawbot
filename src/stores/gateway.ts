@@ -131,6 +131,19 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
           }
         });
 
+        // Listen for agent events (tool execution progress) from the gateway.
+        // These arrive when the client has the 'tool-events' capability and the
+        // agent is executing tools. Each event carries tool start/result data.
+        window.electron.ipcRenderer.on('gateway:agent-event', (data) => {
+          try {
+            import('./chat').then(({ useChatStore }) => {
+              useChatStore.getState().handleAgentEvent(data as Record<string, unknown>);
+            });
+          } catch (err) {
+            console.warn('Failed to forward agent event:', err);
+          }
+        });
+
       } catch (error) {
         console.error('Failed to initialize Gateway:', error);
         set({ lastError: String(error) });

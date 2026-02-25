@@ -879,7 +879,7 @@ export class GatewayManager extends EventEmitter {
             auth: {
               token: currentToken,
             },
-            caps: [],
+            caps: ['tool-events'],
             role,
             scopes,
             device,
@@ -1053,6 +1053,9 @@ export class GatewayManager extends EventEmitter {
         break;
       case 'chat':
         this.emit('chat:message', { message: payload });
+        break;
+      case 'agent':
+        this.emit('agent:event', payload);
         break;
       case 'channel.status':
         this.emit('channel:status', payload as { channelId: string; status: string });

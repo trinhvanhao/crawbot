@@ -791,6 +791,12 @@ function registerGatewayHandlers(
     }
   });
 
+  gatewayManager.on('agent:event', (data) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('gateway:agent-event', data);
+    }
+  });
+
   gatewayManager.on('exit', (code) => {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('gateway:exit', code);

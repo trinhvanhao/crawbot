@@ -102,6 +102,7 @@ interface ChatState {
   sendMessage: (text: string, attachments?: Array<{ fileName: string; mimeType: string; fileSize: number; stagedPath: string; preview: string | null }>) => Promise<void>;
   abortRun: () => Promise<void>;
   handleChatEvent: (event: Record<string, unknown>) => void;
+  handleAgentEvent: (event: Record<string, unknown>) => void;
   toggleThinking: () => void;
   refresh: () => Promise<void>;
   clearError: () => void;
@@ -109,6 +110,9 @@ interface ChatState {
 
 const DEFAULT_CANONICAL_PREFIX = 'agent:main';
 const DEFAULT_SESSION_KEY = `${DEFAULT_CANONICAL_PREFIX}:main`;
+
+// Throttle for agent-event-triggered history reloads (module-level to avoid store pollution)
+let lastAgentHistoryReload = 0;
 
 // ── Local image cache ─────────────────────────────────────────
 // The Gateway doesn't store image attachments in session content blocks,
@@ -1504,6 +1508,48 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }));
         }
         break;
+      }
+    }
+  },
+
+  // ── Handle incoming agent events (tool execution progress) ──
+
+  handleAgentEvent: (event: Record<string, unknown>) => {
+    const { sending } = get();
+    if (!sending) return; // Only process agent events during an active run
+
+    const stream = event.stream as string | undefined;
+    if (stream !== 'tool') return; // Only process tool events
+
+    const data = event.data as Record<string, unknown> | undefined;
+    if (!data) return;
+
+    const phase = data.phase as string | undefined;
+    const toolName = data.name as string | undefined;
+    const toolCallId = data.toolCallId as string | undefined;
+
+    if (!toolName) return;
+
+    const toolStatus: ToolStatus = {
+      toolCallId: toolCallId || undefined,
+      name: toolName,
+      status: phase === 'result' ? 'completed' : 'running',
+      updatedAt: Date.now(),
+    };
+
+    set((s) => ({
+      streamingTools: upsertToolStatuses(s.streamingTools, [toolStatus]),
+    }));
+
+    // Trigger a throttled history reload to surface intermediate blocks
+    // (thinking + tool_use) from the persisted transcript. On 'start', the
+    // assistant message with thinking + tool_use is already saved to the
+    // transcript; on 'result', the tool result is also available.
+    if (phase === 'start' || phase === 'result') {
+      const now = Date.now();
+      if (now - lastAgentHistoryReload > 500) {
+        lastAgentHistoryReload = now;
+        void get().loadHistory(true);
       }
     }
   },
