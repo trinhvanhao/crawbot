@@ -144,6 +144,11 @@ const electronAPI = {
         'file:listDir',
         'file:readAny',
         'file:writeAny',
+        'file:copy',
+        'file:move',
+        'file:delete',
+        'file:create',
+        'file:createDir',
         // File staging & media
         'file:stage',
         'file:stageBuffer',

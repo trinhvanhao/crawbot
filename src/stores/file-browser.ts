@@ -18,6 +18,8 @@ interface FileBrowserState {
   entries: Record<string, FileEntry[]>; // dirPath → children
   expandedDirs: Set<string>;
   selectedFile: string | null;
+  selectedPaths: Set<string>; // multi-select for bulk operations
+  lastClickedPath: string | null; // anchor for shift+click range select
   fileContent: string | null;
   fileDirty: boolean;
   loading: boolean;
@@ -35,6 +37,8 @@ interface FileBrowserState {
   saveFile: () => Promise<void>;
   refreshTree: () => Promise<void>;
   closeFile: () => void;
+  setSelectedPaths: (paths: Set<string>) => void;
+  clearSelection: () => void;
 }
 
 export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
@@ -45,6 +49,8 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
   entries: {},
   expandedDirs: new Set<string>(),
   selectedFile: null,
+  selectedPaths: new Set<string>(),
+  lastClickedPath: null,
   fileContent: null,
   fileDirty: false,
   loading: false,
@@ -71,6 +77,8 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
       entries: {},
       expandedDirs: new Set<string>(),
       selectedFile: null,
+      selectedPaths: new Set<string>(),
+      lastClickedPath: null,
       fileContent: null,
       fileDirty: false,
     });
@@ -202,5 +210,13 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
 
   closeFile: () => {
     set({ selectedFile: null, fileContent: null, fileDirty: false });
+  },
+
+  setSelectedPaths: (paths: Set<string>) => {
+    set({ selectedPaths: paths });
+  },
+
+  clearSelection: () => {
+    set({ selectedPaths: new Set<string>(), lastClickedPath: null });
   },
 }));

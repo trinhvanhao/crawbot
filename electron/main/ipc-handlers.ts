@@ -3,9 +3,9 @@
  * Registers all IPC handlers for main-renderer communication
  */
 import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
-import { existsSync, copyFileSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, copyFileSync, cpSync, statSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, extname, basename } from 'node:path';
+import { join, extname, basename, dirname } from 'node:path';
 import crypto from 'node:crypto';
 import { GatewayManager } from '../gateway/manager';
 import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUninstallParams } from '../gateway/clawhub';
@@ -385,6 +385,81 @@ function registerAgentHandlers(): void {
       return { success: true };
     } catch (error) {
       console.error('Failed to write file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Copy a file or directory to a destination directory
+  ipcMain.handle('file:copy', async (_, srcPath: string, destDir: string) => {
+    try {
+      const name = basename(srcPath);
+      const dest = join(destDir, name);
+      const stat = statSync(srcPath);
+      if (stat.isDirectory()) {
+        cpSync(srcPath, dest, { recursive: true });
+      } else {
+        copyFileSync(srcPath, dest);
+      }
+      return { success: true, destPath: dest };
+    } catch (error) {
+      console.error('Failed to copy file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Move (cut+paste) a file or directory to a destination directory
+  ipcMain.handle('file:move', async (_, srcPath: string, destDir: string) => {
+    try {
+      const name = basename(srcPath);
+      const dest = join(destDir, name);
+      renameSync(srcPath, dest);
+      return { success: true, destPath: dest };
+    } catch (error) {
+      console.error('Failed to move file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Create a new empty file
+  ipcMain.handle('file:create', async (_, filePath: string) => {
+    try {
+      if (existsSync(filePath)) {
+        return { success: false, error: 'File already exists' };
+      }
+      writeFileSync(filePath, '', 'utf-8');
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to create file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Create a new directory
+  ipcMain.handle('file:createDir', async (_, dirPath: string) => {
+    try {
+      if (existsSync(dirPath)) {
+        return { success: false, error: 'Directory already exists' };
+      }
+      mkdirSync(dirPath, { recursive: true });
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to create directory:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Delete a file or directory
+  ipcMain.handle('file:delete', async (_, targetPath: string) => {
+    try {
+      const stat = statSync(targetPath);
+      if (stat.isDirectory()) {
+        rmSync(targetPath, { recursive: true });
+      } else {
+        rmSync(targetPath);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to delete file:', error);
       return { success: false, error: String(error) };
     }
   });
