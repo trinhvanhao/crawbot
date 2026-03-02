@@ -1,30 +1,17 @@
 /**
- * FileEditor — file content viewer/editor with save support.
+ * FileEditor — text file editor with save support.
  * Uses a monospace textarea for editing; Ctrl/Cmd+S to save.
+ * Only rendered for text-editable files (code, markdown, config, etc.).
  */
 import { useEffect, useCallback, useRef } from 'react';
-import { Save, X, FileText, FileWarning } from 'lucide-react';
+import { Save, X, FileText, ExternalLink } from 'lucide-react';
 import { useFileBrowserStore } from '@/stores/file-browser';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-const BINARY_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
-  '.mp3', '.mp4', '.wav', '.ogg', '.webm', '.avi', '.mov',
-  '.zip', '.tar', '.gz', '.rar', '.7z', '.bz2',
-  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-  '.exe', '.dll', '.so', '.dylib', '.bin', '.dat',
-  '.woff', '.woff2', '.ttf', '.otf', '.eot',
-]);
-
-function isBinaryFile(filePath: string): boolean {
-  const ext = filePath.includes('.') ? '.' + filePath.split('.').pop()!.toLowerCase() : '';
-  return BINARY_EXTENSIONS.has(ext);
-}
-
 function getFileName(filePath: string): string {
-  return filePath.split('/').pop() ?? filePath;
+  return filePath.split(/[\\/]/).pop() ?? filePath;
 }
 
 export function FileEditor() {
@@ -35,6 +22,7 @@ export function FileEditor() {
   const updateContent = useFileBrowserStore((s) => s.updateContent);
   const saveFile = useFileBrowserStore((s) => s.saveFile);
   const closeFile = useFileBrowserStore((s) => s.closeFile);
+  const openFileExternal = useFileBrowserStore((s) => s.openFileExternal);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -63,23 +51,12 @@ export function FileEditor() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedFile, fileDirty, saveFile]);
 
-  // No file selected
+  // No file selected — placeholder
   if (!selectedFile) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
         <FileText className="h-10 w-10 opacity-20" />
         <p className="text-xs">Select a file to view</p>
-      </div>
-    );
-  }
-
-  // Binary file
-  if (isBinaryFile(selectedFile)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
-        <FileWarning className="h-10 w-10 opacity-30" />
-        <p className="text-xs font-medium">{getFileName(selectedFile)}</p>
-        <p className="text-xs opacity-60">Binary file — cannot preview</p>
       </div>
     );
   }
@@ -124,6 +101,19 @@ export function FileEditor() {
               <TooltipContent side="bottom"><p>Save (Ctrl+S)</p></TooltipContent>
             </Tooltip>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => openFileExternal()}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Open in default app</p></TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

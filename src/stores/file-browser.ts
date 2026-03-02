@@ -3,12 +3,20 @@
  * Manages state for the workspace file browser panel in the Chat page
  */
 import { create } from 'zustand';
+import { getFileViewMode, type FileViewMode } from '@/utils/file-type';
 
 export interface FileEntry {
   name: string;
   path: string;
   isDirectory: boolean;
 }
+
+/** Result from office document conversion (file:convertOffice IPC). */
+export type OfficeConvertResult =
+  | { format: 'document'; html: string }
+  | { format: 'spreadsheet'; sheets: { name: string; html: string }[] }
+  | { format: 'presentation'; slides: { index: number; text: string }[] }
+  | { format: 'error'; error: string };
 
 interface FileBrowserState {
   panelOpen: boolean;
@@ -21,6 +29,10 @@ interface FileBrowserState {
   selectedPaths: Set<string>; // multi-select for bulk operations
   lastClickedPath: string | null; // anchor for shift+click range select
   fileContent: string | null;
+  fileViewMode: FileViewMode | null; // current view mode for selected file
+  fileUrl: string | null; // local-file:// URL for binary file viewing
+  fileSize: number | null; // file size in bytes
+  fileOfficeData: OfficeConvertResult | null; // converted office document data
   fileDirty: boolean;
   loading: boolean;
   fileLoading: boolean;
@@ -37,6 +49,7 @@ interface FileBrowserState {
   saveFile: () => Promise<void>;
   refreshTree: () => Promise<void>;
   closeFile: () => void;
+  openFileExternal: (filePath?: string) => void;
   setSelectedPaths: (paths: Set<string>) => void;
   clearSelection: () => void;
 }
@@ -52,6 +65,10 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
   selectedPaths: new Set<string>(),
   lastClickedPath: null,
   fileContent: null,
+  fileViewMode: null,
+  fileUrl: null,
+  fileSize: null,
+  fileOfficeData: null,
   fileDirty: false,
   loading: false,
   fileLoading: false,
@@ -80,6 +97,10 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
       selectedPaths: new Set<string>(),
       lastClickedPath: null,
       fileContent: null,
+      fileViewMode: null,
+      fileUrl: null,
+      fileSize: null,
+      fileOfficeData: null,
       fileDirty: false,
     });
     if (get().panelOpen) {
@@ -145,30 +166,81 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
       await get().saveFile();
     }
 
-    set({ fileLoading: true, selectedFile: filePath });
-    try {
-      const result = (await window.electron.ipcRenderer.invoke('file:readAny', filePath)) as {
-        success: boolean;
-        content?: string;
-        truncated?: boolean;
-        error?: string;
-      };
+    const viewMode = getFileViewMode(filePath);
+    set({
+      fileLoading: true,
+      selectedFile: filePath,
+      fileViewMode: viewMode,
+      fileUrl: null,
+      fileSize: null,
+      fileOfficeData: null,
+      fileContent: null,
+      fileDirty: false,
+    });
 
-      if (result.success) {
-        set({
-          fileContent: result.content ?? '',
-          fileDirty: false,
-          fileLoading: false,
-        });
+    try {
+      if (viewMode === 'editor') {
+        // Text file: read as text
+        const result = (await window.electron.ipcRenderer.invoke('file:readAny', filePath)) as {
+          success: boolean;
+          content?: string;
+          truncated?: boolean;
+          error?: string;
+        };
+        if (result.success) {
+          set({ fileContent: result.content ?? '', fileDirty: false, fileLoading: false });
+        } else {
+          set({ fileContent: null, fileLoading: false });
+        }
+      } else if (viewMode === 'office') {
+        // Office files: convert to HTML for inline viewing
+        const result = (await window.electron.ipcRenderer.invoke('file:convertOffice', filePath)) as {
+          success: boolean;
+          html?: string;
+          sheets?: { name: string; html: string }[];
+          slides?: { index: number; text: string }[];
+          format?: string;
+          error?: string;
+        };
+        if (result.success) {
+          let officeData: OfficeConvertResult;
+          if (result.format === 'document' && result.html) {
+            officeData = { format: 'document', html: result.html };
+          } else if (result.format === 'spreadsheet' && result.sheets) {
+            officeData = { format: 'spreadsheet', sheets: result.sheets };
+          } else if (result.format === 'presentation' && result.slides) {
+            officeData = { format: 'presentation', slides: result.slides };
+          } else {
+            officeData = { format: 'error', error: 'Unknown format' };
+          }
+          set({ fileOfficeData: officeData, fileLoading: false });
+        } else {
+          set({
+            fileOfficeData: { format: 'error', error: result.error ?? 'Conversion failed' },
+            fileLoading: false,
+          });
+        }
       } else {
-        set({
-          fileContent: null,
-          fileLoading: false,
-        });
+        // Binary viewable file (image, pdf, audio, video): get local-file:// URL
+        const result = (await window.electron.ipcRenderer.invoke('file:getLocalUrl', filePath)) as {
+          success: boolean;
+          url?: string;
+          size?: number;
+          error?: string;
+        };
+        if (result.success && result.url) {
+          set({
+            fileUrl: result.url,
+            fileSize: result.size ?? null,
+            fileLoading: false,
+          });
+        } else {
+          set({ fileLoading: false });
+        }
       }
     } catch (error) {
       console.error('Failed to read file:', error);
-      set({ fileContent: null, fileLoading: false });
+      set({ fileContent: null, fileUrl: null, fileOfficeData: null, fileLoading: false });
     }
   },
 
@@ -209,7 +281,22 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
   },
 
   closeFile: () => {
-    set({ selectedFile: null, fileContent: null, fileDirty: false });
+    set({
+      selectedFile: null,
+      fileContent: null,
+      fileViewMode: null,
+      fileUrl: null,
+      fileSize: null,
+      fileOfficeData: null,
+      fileDirty: false,
+    });
+  },
+
+  openFileExternal: (filePath?: string) => {
+    const target = filePath ?? get().selectedFile;
+    if (target) {
+      window.electron.ipcRenderer.invoke('shell:openPath', target);
+    }
   },
 
   setSelectedPaths: (paths: Set<string>) => {

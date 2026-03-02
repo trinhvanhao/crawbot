@@ -6,6 +6,7 @@ import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electro
 import { existsSync, copyFileSync, cpSync, statSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, extname, basename, dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import { GatewayManager } from '../gateway/manager';
 import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUninstallParams } from '../gateway/clawhub';
@@ -448,6 +449,28 @@ function registerAgentHandlers(): void {
     }
   });
 
+  // Return a local-file:// protocol URL for binary file viewing (images, audio, video, PDF).
+  // The local-file protocol is registered in index.ts and streams files directly from disk,
+  // avoiding base64 encoding and supporting Range requests for large files.
+  ipcMain.handle('file:getLocalUrl', async (_, filePath: string) => {
+    try {
+      const stat = statSync(filePath);
+      // Use Node's pathToFileURL for correct cross-platform encoding (handles
+      // Windows drive letters, backslashes, spaces, unicode, etc.), then swap
+      // the scheme from file:/// to local-file://localhost/ so that Chromium's
+      // standard URL parsing treats "localhost" as the host (harmless to lowercase)
+      // and keeps the real file path intact in the pathname.
+      // macOS/Linux: file:///Users/x/f.pdf → local-file://localhost/Users/x/f.pdf
+      // Windows:     file:///C:/Users/x/f.pdf → local-file://localhost/C:/Users/x/f.pdf
+      const fileUrl = pathToFileURL(filePath).href;
+      const url = fileUrl.replace(/^file:\/\/\//, 'local-file://localhost/');
+      return { success: true, url, size: stat.size };
+    } catch (error) {
+      console.error('Failed to get local file URL:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
   // Delete a file or directory
   ipcMain.handle('file:delete', async (_, targetPath: string) => {
     try {
@@ -460,6 +483,92 @@ function registerAgentHandlers(): void {
       return { success: true };
     } catch (error) {
       console.error('Failed to delete file:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Convert office documents to HTML for inline viewing
+  const OFFICE_CONVERT_EXTS = new Set([
+    'docx', 'doc', 'odt', 'rtf',          // documents
+    'xlsx', 'xls', 'ods', 'csv',           // spreadsheets
+    'pptx', 'ppt', 'odp',                  // presentations
+  ]);
+  const MAX_OFFICE_SIZE = 50 * 1024 * 1024; // 50 MB
+
+  ipcMain.handle('file:convertOffice', async (_, filePath: string) => {
+    try {
+      const ext = extname(filePath).slice(1).toLowerCase();
+      if (!OFFICE_CONVERT_EXTS.has(ext)) {
+        return { success: false, error: 'Unsupported format' };
+      }
+
+      const stat = statSync(filePath);
+      if (stat.size > MAX_OFFICE_SIZE) {
+        return { success: false, error: 'File too large to preview', size: stat.size };
+      }
+
+      const buffer = readFileSync(filePath);
+
+      // --- Word documents (.docx) ---
+      if (ext === 'docx') {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.convertToHtml({ buffer });
+        return { success: true, html: result.value, format: 'document' };
+      }
+
+      // --- Spreadsheets (.xlsx, .xls, .ods, .csv) ---
+      if (['xlsx', 'xls', 'ods', 'csv'].includes(ext)) {
+        const XLSX = await import('xlsx');
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetNames = workbook.SheetNames;
+        // Build HTML with tabs for multiple sheets
+        const sheets: { name: string; html: string }[] = [];
+        for (const name of sheetNames) {
+          const ws = workbook.Sheets[name];
+          const html = XLSX.utils.sheet_to_html(ws);
+          sheets.push({ name, html });
+        }
+        return { success: true, sheets, format: 'spreadsheet' };
+      }
+
+      // --- Presentations (.pptx) — extract slide text content ---
+      if (ext === 'pptx') {
+        try {
+          const AdmZip = (await import('adm-zip')).default;
+          const zip = new AdmZip(buffer);
+
+          const slides: { index: number; text: string }[] = [];
+          const entries = zip.getEntries();
+          const slideEntries = entries
+            .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName))
+            .sort((a, b) => {
+              const numA = parseInt(a.entryName.match(/slide(\d+)/)?.[1] ?? '0');
+              const numB = parseInt(b.entryName.match(/slide(\d+)/)?.[1] ?? '0');
+              return numA - numB;
+            });
+
+          for (const entry of slideEntries) {
+            const xml = entry.getData().toString('utf-8');
+            // Extract text from <a:t> tags
+            const texts: string[] = [];
+            const regex = /<a:t[^>]*>([^<]*)<\/a:t>/g;
+            let match;
+            while ((match = regex.exec(xml)) !== null) {
+              if (match[1].trim()) texts.push(match[1]);
+            }
+            const idx = parseInt(entry.entryName.match(/slide(\d+)/)?.[1] ?? '0');
+            slides.push({ index: idx, text: texts.join('\n') });
+          }
+          return { success: true, slides, format: 'presentation' };
+        } catch {
+          return { success: false, error: 'Cannot parse presentation file' };
+        }
+      }
+
+      // --- Fallback: unsupported legacy formats (.doc, .ppt, .odt, .odp, .rtf) ---
+      return { success: false, error: `Preview not supported for .${ext} files` };
+    } catch (error) {
+      console.error('Failed to convert office file:', error);
       return { success: false, error: String(error) };
     }
   });

@@ -2,8 +2,9 @@
  * Electron Main Process Entry
  * Manages window creation, system tray, and IPC handlers
  */
-import { app, BrowserWindow, clipboard, Menu, nativeImage, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, Menu, nativeImage, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
+import { pathToFileURL } from 'node:url';
 import { GatewayManager } from '../gateway/manager';
 import { registerIpcHandlers } from './ipc-handlers';
 import { createTray } from './tray';
@@ -19,6 +20,23 @@ import { ClawHubService } from '../gateway/clawhub';
 
 // Disable GPU acceleration for better compatibility
 app.disableHardwareAcceleration();
+
+// Register 'local-file' as a privileged scheme so it can be used in <iframe>, <img>, <video>, <audio>.
+// Must be called before app.whenReady().
+// NOTE: `standard: true` enables proper URL parsing. We use "localhost" as the host component
+// so Chromium's authority parsing lowercases "localhost" (harmless) instead of the file path.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'local-file',
+    privileges: {
+      standard: true,       // standard URL parsing (scheme://host/path)
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,         // enables Range requests for video/audio seeking
+      bypassCSP: true,
+    },
+  },
+]);
 
 // Global references
 let mainWindow: BrowserWindow | null = null;
@@ -270,6 +288,19 @@ app.setName('CrawBot');
 
 // Application lifecycle
 app.whenReady().then(() => {
+  // Register local-file:// protocol handler to serve local files for the workspace viewer.
+  // URLs use local-file://localhost/<path> format. We parse the pathname, decode it, and
+  // convert back to a file:// URL via pathToFileURL for correct cross-platform handling.
+  protocol.handle('local-file', (request) => {
+    // URL format: local-file://localhost/Users/x/file.pdf (macOS/Linux)
+    //             local-file://localhost/C:/Users/x/file.pdf (Windows)
+    // With standard:true, Chromium parses this as host=localhost, pathname=/Users/...
+    // We extract the pathname, decode it, and convert back to a file:// URL.
+    const parsed = new URL(request.url);
+    const filePath = decodeURIComponent(parsed.pathname);
+    return net.fetch(pathToFileURL(filePath).href);
+  });
+
   initialize();
 
   // Register activate handler AFTER app is ready to prevent

@@ -149,6 +149,8 @@ const electronAPI = {
         'file:delete',
         'file:create',
         'file:createDir',
+        'file:getLocalUrl',
+        'file:convertOffice',
         // File staging & media
         'file:stage',
         'file:stageBuffer',

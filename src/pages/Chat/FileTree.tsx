@@ -127,6 +127,11 @@ function FileContextMenu({
     onClose();
   };
 
+  const openInDefaultApp = () => {
+    ipc.invoke('shell:openPath', menu.path);
+    onClose();
+  };
+
   const canPaste = menu.isDirectory && fileClipboard !== null;
   const label = selectedCount > 1 ? ` (${selectedCount})` : '';
 
@@ -154,6 +159,7 @@ function FileContextMenu({
       <div className={separatorClass} />
       <button onClick={copyPath} className={menuItemClass}>Copy Path</button>
       <button onClick={revealInFileManager} className={menuItemClass}>Reveal in File Manager</button>
+      <button onClick={openInDefaultApp} className={menuItemClass}>Open in Default App</button>
       <div className={separatorClass} />
       <button onClick={onDelete} className={menuItemClass + ' text-destructive hover:text-destructive'}>
         Delete{label}

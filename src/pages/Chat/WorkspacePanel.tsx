@@ -1,8 +1,11 @@
 /**
- * WorkspacePanel — VSCode-like side panel combining FileTree + FileEditor.
+ * WorkspacePanel — VSCode-like side panel combining FileTree + FileEditor/FileViewer.
  * Rendered on the right side of the Chat page when toggled open.
  * Both the panel width and the tree/editor split are mouse-resizable.
  * Sizes persist in the Zustand store across panel open/close.
+ *
+ * Switches between FileEditor (for text files) and FileViewer (for images,
+ * PDF, audio, video, office documents) based on the detected file view mode.
  */
 import { useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
@@ -12,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { FileEditor } from './FileEditor';
+import { FileViewer } from './FileViewer';
 
 const MIN_PANEL_WIDTH = 300;
 const MAX_PANEL_WIDTH = 900;
@@ -24,6 +28,7 @@ export function WorkspacePanel() {
   const treeWidth = useFileBrowserStore((s) => s.treeWidth);
   const setPanelWidth = useFileBrowserStore((s) => s.setPanelWidth);
   const setTreeWidth = useFileBrowserStore((s) => s.setTreeWidth);
+  const fileViewMode = useFileBrowserStore((s) => s.fileViewMode);
 
   const draggingRef = useRef<'panel' | 'split' | null>(null);
   const startXRef = useRef(0);
@@ -71,6 +76,9 @@ export function WorkspacePanel() {
   // Clamp tree width to panel width
   const effectiveTreeWidth = Math.min(treeWidth, panelWidth - MIN_EDITOR_WIDTH);
 
+  // Determine which content panel to render
+  const isViewer = fileViewMode && fileViewMode !== 'editor';
+
   return (
     <div
       className="flex flex-col h-full shrink-0 border-l border-border bg-background relative"
@@ -100,7 +108,7 @@ export function WorkspacePanel() {
         </Tooltip>
       </div>
 
-      {/* Body: tree + resize handle + editor */}
+      {/* Body: tree + resize handle + editor/viewer */}
       <div className="flex-1 flex min-h-0">
         {/* File tree */}
         <div
@@ -119,9 +127,9 @@ export function WorkspacePanel() {
           onMouseDown={(e) => startDrag('split', e)}
         />
 
-        {/* File editor / viewer */}
+        {/* File editor or viewer */}
         <div className="flex-1 min-w-0 overflow-hidden">
-          <FileEditor />
+          {isViewer ? <FileViewer /> : <FileEditor />}
         </div>
       </div>
     </div>

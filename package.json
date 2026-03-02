@@ -67,6 +67,7 @@
         "framer-motion": "^12.34.2",
         "i18next": "^25.8.11",
         "lucide-react": "^0.563.0",
+        "mammoth": "^1.11.0",
         "openclaw": "2026.2.24",
         "prism-react-renderer": "^2.4.1",
         "react": "^19.2.4",
@@ -79,6 +80,7 @@
         "tailwind-merge": "^3.5.0",
         "tailwindcss-animate": "^1.0.7",
         "ws": "^8.19.0",
+        "xlsx": "^0.18.5",
         "zustand": "^5.0.11"
     },
     "devDependencies": {
