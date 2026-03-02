@@ -56,8 +56,8 @@ interface FileBrowserState {
 
 export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
   panelOpen: false,
-  panelWidth: 480,
-  treeWidth: 200,
+  panelWidth: 0,
+  treeWidth: 240,
   rootPath: null,
   entries: {},
   expandedDirs: new Set<string>(),
@@ -127,7 +127,7 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
   loadDirectory: async (dirPath: string) => {
     set({ loading: true });
     try {
-      const result = (await window.electron.ipcRenderer.invoke('file:listDir', dirPath)) as {
+      const result = (await window.electron.ipcRenderer.invoke('file:listDir', dirPath, true)) as {
         success: boolean;
         files?: FileEntry[];
         error?: string;

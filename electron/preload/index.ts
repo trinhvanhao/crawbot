@@ -163,6 +163,9 @@ const electronAPI = {
         // Config bundle export/import
         'config:export',
         'config:import',
+        // Workspace archive export/import
+        'workspace:export',
+        'workspace:import',
         // OpenClaw extras
         'openclaw:getDir',
         'openclaw:getConfigDir',

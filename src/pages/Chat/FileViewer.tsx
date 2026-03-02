@@ -86,7 +86,12 @@ function AudioPlayer({ url, fileName }: { url: string; fileName: string }) {
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
       <FileAudio className="h-16 w-16 text-muted-foreground/40" />
       <p className="text-sm text-muted-foreground">{fileName}</p>
-      <audio controls className="w-full max-w-md" src={url}>
+      <audio
+        controls
+        className="w-full max-w-md"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        src={url}
+      >
         Your browser does not support the audio element.
       </audio>
     </div>
@@ -95,10 +100,11 @@ function AudioPlayer({ url, fileName }: { url: string; fileName: string }) {
 
 function VideoPlayer({ url, fileName }: { url: string; fileName: string }) {
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-black/5 overflow-hidden">
+    <div className="flex-1 flex flex-col p-4 bg-black/5 min-h-0">
       <video
         controls
-        className="max-w-full max-h-full rounded"
+        className="w-full flex-1 min-h-0 rounded object-contain"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         src={url}
         title={fileName}
       >

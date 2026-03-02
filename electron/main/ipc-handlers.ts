@@ -3,9 +3,9 @@
  * Registers all IPC handlers for main-renderer communication
  */
 import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
-import { existsSync, copyFileSync, cpSync, statSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync, watch, type FSWatcher } from 'node:fs';
+import { existsSync, copyFileSync, cpSync, statSync, readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, rmSync, watch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, extname, basename, dirname } from 'node:path';
+import { join, extname, basename, dirname, normalize, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import { GatewayManager } from '../gateway/manager';
@@ -77,6 +77,7 @@ import {
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
 import { getProviderConfig, getProviderDefaultModel } from '../utils/provider-registry';
+import AdmZip from 'adm-zip';
 
 /**
  * Register all IPC handlers
@@ -133,6 +134,9 @@ export function registerIpcHandlers(
 
   // Config bundle export/import handlers
   registerConfigBundleHandlers();
+
+  // Workspace archive export/import handlers
+  registerWorkspaceArchiveHandlers();
 }
 
 /**
@@ -2560,6 +2564,105 @@ function registerConfigBundleHandlers(): void {
     }
 
     return importConfigBundle(zipPath);
+  });
+}
+
+/**
+ * Workspace archive export/import handlers
+ */
+function registerWorkspaceArchiveHandlers(): void {
+  ipcMain.handle('workspace:export', async (_, params: { rootPath: string }) => {
+    try {
+      if (!params.rootPath || !existsSync(params.rootPath)) {
+        return { success: false, error: 'Workspace folder does not exist' };
+      }
+
+      const folderName = basename(params.rootPath);
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const defaultPath = join(homedir(), 'Downloads', `${folderName}-${timestamp}.zip`);
+
+      const result = await dialog.showSaveDialog({
+        defaultPath,
+        filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+      });
+      if (result.canceled || !result.filePath) {
+        return { success: false, error: 'cancelled' };
+      }
+
+      const zip = new AdmZip();
+      let fileCount = 0;
+
+      const walkAndAdd = (dir: string, baseDir: string) => {
+        const dirEntries = readdirSync(dir, { withFileTypes: true });
+        for (const entry of dirEntries) {
+          const fullPath = join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (['node_modules', '.git', '__pycache__'].includes(entry.name)) continue;
+            walkAndAdd(fullPath, baseDir);
+          } else if (entry.isFile()) {
+            const relativePath = fullPath.slice(baseDir.length + 1);
+            const relativeDir = dirname(relativePath);
+            zip.addLocalFile(fullPath, relativeDir === '.' ? '' : relativeDir);
+            fileCount++;
+          }
+        }
+      };
+
+      walkAndAdd(params.rootPath, params.rootPath);
+      zip.writeZip(result.filePath);
+
+      logger.info(`Workspace exported: ${result.filePath} (${fileCount} files)`);
+      return { success: true, filePath: result.filePath, fileCount };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('Workspace export failed:', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('workspace:import', async (_, params: { targetPath: string }) => {
+    try {
+      if (!params.targetPath) {
+        return { success: false, error: 'No target path specified' };
+      }
+
+      const openResult = await dialog.showOpenDialog({
+        filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+        properties: ['openFile'],
+      });
+      if (openResult.canceled || !openResult.filePaths.length) {
+        return { success: false, error: 'cancelled' };
+      }
+
+      const zipPath = openResult.filePaths[0];
+      const zip = new AdmZip(zipPath);
+      const entries = zip.getEntries();
+      let fileCount = 0;
+
+      // Zip-slip protection
+      const normalizedTarget = normalize(params.targetPath + '/');
+      for (const entry of entries) {
+        if (entry.isDirectory) continue;
+        const resolved = resolve(params.targetPath, entry.entryName);
+        if (!resolved.startsWith(normalizedTarget)) {
+          logger.warn(`Skipping unsafe path in workspace import: ${entry.entryName}`);
+          continue;
+        }
+        const targetDir = dirname(resolved);
+        if (!existsSync(targetDir)) {
+          mkdirSync(targetDir, { recursive: true });
+        }
+        writeFileSync(resolved, entry.getData());
+        fileCount++;
+      }
+
+      logger.info(`Workspace imported to ${params.targetPath} (${fileCount} files)`);
+      return { success: true, fileCount };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('Workspace import failed:', message);
+      return { success: false, error: message };
+    }
   });
 }
 

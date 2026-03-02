@@ -17,8 +17,15 @@ import {
   FolderOpenDot,
   RefreshCw,
   CornerDownLeft,
+  Download,
+  Upload,
+  Home,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useFileBrowserStore, type FileEntry } from '@/stores/file-browser';
+import { useChatStore } from '@/stores/chat';
+import { useAgentsStore } from '@/stores/agents';
+import { resolveAgentWorkspace } from '@/types/agent';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -660,6 +667,59 @@ export function FileTree() {
     if (parent !== rootPath) setRootPath(parent);
   }, [rootPath, setRootPath]);
 
+  /* ── Navigate home (agent workspace) ── */
+  const selectedAgentId = useChatStore((s) => s.selectedAgentId);
+  const agents = useAgentsStore((s) => s.agents);
+  const agentDefaults = useAgentsStore((s) => s.defaults);
+
+  const navigateHome = useCallback(() => {
+    const agent = agents.find((a) => a.id === selectedAgentId);
+    const workspace = agent ? resolveAgentWorkspace(agent, agentDefaults) : undefined;
+    if (workspace) {
+      setRootPath(workspace);
+    }
+  }, [agents, selectedAgentId, agentDefaults, setRootPath]);
+
+  /* ── Workspace export/import ── */
+  const handleExport = useCallback(async () => {
+    if (!rootPath) return;
+    try {
+      const result = (await ipc.invoke('workspace:export', { rootPath })) as {
+        success: boolean;
+        filePath?: string;
+        fileCount?: number;
+        error?: string;
+      };
+      if (result.success) {
+        toast.success(`Exported ${result.fileCount} files`);
+      } else if (result.error !== 'cancelled') {
+        toast.error(result.error || 'Export failed');
+      }
+    } catch (err) {
+      toast.error('Export failed: ' + String(err));
+    }
+  }, [rootPath]);
+
+  const handleImport = useCallback(async () => {
+    if (!rootPath) return;
+
+    try {
+      const result = (await ipc.invoke('workspace:import', { targetPath: rootPath })) as {
+        success: boolean;
+        fileCount?: number;
+        error?: string;
+      };
+      if (result.success) {
+        toast.success(`Imported ${result.fileCount} files`);
+        refreshTree();
+      } else if (result.error !== 'cancelled') {
+        toast.error(result.error || 'Import failed');
+      }
+    } catch (err) {
+      toast.error('Import failed: ' + String(err));
+    }
+  }, [rootPath, refreshTree]);
+
   /* ── Create new file/folder ── */
   const handleNewItemSubmit = useCallback(async (name: string) => {
     const dir = newItemDir ?? rootPath;
@@ -727,17 +787,30 @@ export function FileTree() {
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Explorer
         </span>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
+                onClick={navigateHome}
+              >
+                <Home className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Agent Workspace</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
                 onClick={navigateUp}
                 disabled={!rootPath}
               >
-                <ArrowUp className="h-3.5 w-3.5" />
+                <ArrowUp className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom"><p>Go Up</p></TooltipContent>
@@ -747,11 +820,11 @@ export function FileTree() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
                 onClick={() => { setNewItemDir(null); setNewItem('file'); }}
                 disabled={!rootPath}
               >
-                <FilePlus className="h-3.5 w-3.5" />
+                <FilePlus className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom"><p>New File</p></TooltipContent>
@@ -761,11 +834,11 @@ export function FileTree() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
                 onClick={() => { setNewItemDir(null); setNewItem('folder'); }}
                 disabled={!rootPath}
               >
-                <FolderPlus className="h-3.5 w-3.5" />
+                <FolderPlus className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom"><p>New Folder</p></TooltipContent>
@@ -775,10 +848,10 @@ export function FileTree() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
                 onClick={openFolder}
               >
-                <FolderOpenDot className="h-3.5 w-3.5" />
+                <FolderOpenDot className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom"><p>Open Folder</p></TooltipContent>
@@ -788,14 +861,42 @@ export function FileTree() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-5 w-5"
                 onClick={refreshTree}
                 disabled={loading}
               >
-                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+                <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom"><p>Refresh</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={handleExport}
+                disabled={!rootPath}
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Export as ZIP</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={handleImport}
+                disabled={!rootPath}
+              >
+                <Upload className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Import ZIP</p></TooltipContent>
           </Tooltip>
         </div>
       </div>

@@ -5,6 +5,7 @@
 import { app, BrowserWindow, clipboard, Menu, nativeImage, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
 import { pathToFileURL } from 'node:url';
+import { statSync, createReadStream } from 'node:fs';
 import { GatewayManager } from '../gateway/manager';
 import { registerIpcHandlers } from './ipc-handlers';
 import { createTray } from './tray';
@@ -286,6 +287,18 @@ async function initialize(): Promise<void> {
 // (package.json name="crawbot" vs electron-builder productName="CrawBot")
 app.setName('CrawBot');
 
+/** Simple MIME type lookup for the local-file protocol handler */
+function getMimeType(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  const mimeMap: Record<string, string> = {
+    mp4: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska', avi: 'video/x-msvideo', mov: 'video/quicktime',
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4',
+    pdf: 'application/pdf',
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+  };
+  return mimeMap[ext] || 'application/octet-stream';
+}
+
 // Application lifecycle
 app.whenReady().then(() => {
   // Register local-file:// protocol handler to serve local files for the workspace viewer.
@@ -294,10 +307,41 @@ app.whenReady().then(() => {
   protocol.handle('local-file', (request) => {
     // URL format: local-file://localhost/Users/x/file.pdf (macOS/Linux)
     //             local-file://localhost/C:/Users/x/file.pdf (Windows)
-    // With standard:true, Chromium parses this as host=localhost, pathname=/Users/...
-    // We extract the pathname, decode it, and convert back to a file:// URL.
     const parsed = new URL(request.url);
     const filePath = decodeURIComponent(parsed.pathname);
+
+    // Support Range requests for video/audio seeking
+    const rangeHeader = request.headers.get('Range');
+    if (rangeHeader) {
+      const stat = statSync(filePath);
+      const fileSize = stat.size;
+      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      const start = match ? parseInt(match[1], 10) : 0;
+      const end = match && match[2] ? parseInt(match[2], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+
+      const stream = createReadStream(filePath, { start, end });
+      const readable = new ReadableStream({
+        start(controller) {
+          stream.on('data', (chunk: Buffer) => controller.enqueue(chunk));
+          stream.on('end', () => controller.close());
+          stream.on('error', (err) => controller.error(err));
+        },
+        cancel() { stream.destroy(); },
+      });
+
+      return new Response(readable, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(chunkSize),
+          'Content-Type': getMimeType(filePath),
+        },
+      });
+    }
+
+    // Non-range: serve full file via net.fetch
     return net.fetch(pathToFileURL(filePath).href);
   });
 

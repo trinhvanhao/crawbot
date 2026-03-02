@@ -30,6 +30,7 @@ export function WorkspacePanel() {
   const setTreeWidth = useFileBrowserStore((s) => s.setTreeWidth);
   const fileViewMode = useFileBrowserStore((s) => s.fileViewMode);
 
+  const panelRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef<'panel' | 'split' | null>(null);
   const startXRef = useRef(0);
   const startValueRef = useRef(0);
@@ -64,7 +65,9 @@ export function WorkspacePanel() {
       e.preventDefault();
       draggingRef.current = type;
       startXRef.current = e.clientX;
-      startValueRef.current = type === 'panel' ? panelWidth : treeWidth;
+      // When panelWidth is 0 (50% mode), read actual rendered width
+      const actualPanelWidth = panelWidth || (panelRef.current?.offsetWidth ?? 600);
+      startValueRef.current = type === 'panel' ? actualPanelWidth : treeWidth;
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
       document.addEventListener('mousemove', handleMouseMove);
@@ -73,16 +76,18 @@ export function WorkspacePanel() {
     [panelWidth, treeWidth, handleMouseMove, handleMouseUp],
   );
 
-  // Clamp tree width to panel width
-  const effectiveTreeWidth = Math.min(treeWidth, panelWidth - MIN_EDITOR_WIDTH);
+  // Clamp tree width to panel width (use actual width when in 50% mode)
+  const actualPanelWidth = panelWidth || (panelRef.current?.offsetWidth ?? 600);
+  const effectiveTreeWidth = Math.min(treeWidth, actualPanelWidth - MIN_EDITOR_WIDTH);
 
   // Determine which content panel to render
   const isViewer = fileViewMode && fileViewMode !== 'editor';
 
   return (
     <div
+      ref={panelRef}
       className="flex flex-col h-full shrink-0 border-l border-border bg-background relative"
-      style={{ width: `${panelWidth}px` }}
+      style={{ width: panelWidth ? `${panelWidth}px` : '50%' }}
     >
       {/* Panel resize handle (left edge) */}
       <div
