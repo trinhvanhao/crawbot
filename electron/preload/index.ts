@@ -122,6 +122,7 @@ const electronAPI = {
         'skill:updateConfig',
         'skill:getConfig',
         'skill:getAllConfigs',
+        'skill:import',
         // Agent config (direct file access)
         'agent:list',
         'agent:get',

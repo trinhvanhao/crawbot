@@ -2,6 +2,8 @@
     "title": "Kỹ năng",
     "subtitle": "Duyệt và quản lý khả năng AI",
     "refresh": "Làm mới",
+    "import": "Nhập kỹ năng",
+    "importing": "Đang nhập...",
     "openFolder": "Mở thư mục kỹ năng",
     "gatewayWarning": "Gateway chưa chạy. Không thể tải kỹ năng khi Gateway chưa hoạt động.",
     "tabs": {
@@ -60,6 +62,8 @@
         "failedEditor": "Không thể mở trình soạn thảo",
         "failedSave": "Không thể lưu cấu hình",
         "failedOpenFolder": "Không thể mở thư mục kỹ năng",
+        "imported": "Đã nhập và kích hoạt kỹ năng \"{{name}}\" ({{count}} tệp). Hãy bắt đầu phiên chat mới để sử dụng.",
+        "failedImport": "Nhập kỹ năng thất bại",
         "failedInstall": "Cài đặt thất bại",
         "failedUninstall": "Gỡ cài đặt thất bại",
         "failedFolderNotFound": "Thư mục kỹ năng chưa tồn tại. Hãy cài đặt một kỹ năng trước."

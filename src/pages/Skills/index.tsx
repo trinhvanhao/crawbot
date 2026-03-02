@@ -27,6 +27,7 @@ import {
   Key,
   ChevronDown,
   FolderOpen,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -631,6 +632,40 @@ export function Skills() {
 
   const hasInstalledSkills = skills.some(s => !s.isBundled);
 
+  const [importingSkill, setImportingSkill] = useState(false);
+
+  const handleImportSkill = useCallback(async () => {
+    if (importingSkill) return;
+    setImportingSkill(true);
+    try {
+      const result = await window.electron.ipcRenderer.invoke('skill:import') as {
+        success: boolean;
+        error?: string;
+        fileCount?: number;
+        folderName?: string;
+        skillKey?: string;
+        warning?: string;
+      };
+      if (!result.success) {
+        if (result.error === 'cancelled') return;
+        throw new Error(result.error || 'Unknown error');
+      }
+      if (result.warning) {
+        toast.warning(result.warning);
+      } else {
+        toast.success(t('toast.imported', { name: result.skillKey || result.folderName, count: result.fileCount }), {
+          duration: 6000,
+        });
+      }
+      // Refresh skills list after gateway restarts
+      setTimeout(() => fetchSkills(), 2000);
+    } catch (err) {
+      toast.error(t('toast.failedImport') + ': ' + String(err));
+    } finally {
+      setImportingSkill(false);
+    }
+  }, [importingSkill, t, fetchSkills]);
+
   const handleOpenSkillsFolder = useCallback(async () => {
     try {
       const skillsDir = await window.electron.ipcRenderer.invoke('openclaw:getSkillsDir') as string;
@@ -727,6 +762,10 @@ export function Skills() {
           <Button variant="outline" onClick={fetchSkills} disabled={!isGatewayRunning}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('refresh')}
+          </Button>
+          <Button variant="outline" onClick={handleImportSkill} disabled={importingSkill}>
+            <Upload className="h-4 w-4 mr-2" />
+            {importingSkill ? t('importing') : t('import')}
           </Button>
           {hasInstalledSkills && (
             <Button variant="outline" onClick={handleOpenSkillsFolder}>

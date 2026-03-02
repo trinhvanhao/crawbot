@@ -2,6 +2,8 @@
     "title": "Skills",
     "subtitle": "Browse and manage AI capabilities",
     "refresh": "Refresh",
+    "import": "Import Skill",
+    "importing": "Importing...",
     "openFolder": "Open Skills Folder",
     "gatewayWarning": "Gateway is not running. Skills cannot be loaded without an active Gateway.",
     "tabs": {
@@ -60,6 +62,8 @@
         "failedEditor": "Failed to open editor",
         "failedSave": "Failed to save configuration",
         "failedOpenFolder": "Failed to open skills folder",
+        "imported": "Skill \"{{name}}\" imported and enabled ({{count}} files). Start a new chat session to use it.",
+        "failedImport": "Failed to import skill",
         "failedInstall": "Failed to install",
         "failedUninstall": "Failed to uninstall",
         "failedFolderNotFound": "Skills folder does not exist yet. Install a skill first."

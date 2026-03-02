@@ -138,6 +138,9 @@ export function registerIpcHandlers(
 
   // Workspace archive export/import handlers
   registerWorkspaceArchiveHandlers();
+
+  // Skill import handler (extract zip/tar.gz to ~/.openclaw/skills/ and enable)
+  registerSkillImportHandler(gatewayManager);
 }
 
 /**
@@ -2754,6 +2757,247 @@ function registerWorkspaceArchiveHandlers(): void {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error('Workspace import failed:', message);
+      return { success: false, error: message };
+    }
+  });
+}
+
+// ── Skill import handler ─────────────────────────────────────────
+
+/**
+ * Strip version suffix from a skill archive filename to derive the folder name.
+ * Examples:
+ *   "my-skill-1.0.0"       → "my-skill"
+ *   "my-skill-v1.2.3"      → "my-skill"
+ *   "cool_skill-0.1.0-beta" → "cool_skill"
+ *   "skill"                 → "skill"
+ */
+function stripVersionFromName(name: string): string {
+  // Remove common version patterns: -v1.2.3, -1.2.3, -1.0.0-beta, etc.
+  return name.replace(/-v?\d+(\.\d+)*([-.]\w+)*$/, '');
+}
+
+/**
+ * Get a clean folder name from an archive filename.
+ * Strips the extension (.zip, .tar.gz, .tgz) and version suffix.
+ */
+function skillFolderNameFromArchive(archivePath: string): string {
+  let name = basename(archivePath);
+  // Strip extensions
+  if (name.toLowerCase().endsWith('.tar.gz')) {
+    name = name.slice(0, -7);
+  } else if (name.toLowerCase().endsWith('.tgz')) {
+    name = name.slice(0, -4);
+  } else if (name.toLowerCase().endsWith('.zip')) {
+    name = name.slice(0, -4);
+  }
+  return stripVersionFromName(name);
+}
+
+/**
+ * After extracting an archive, check if the result is a single wrapper directory.
+ * If so, move its contents up one level (flatten). This handles the common pattern
+ * where archives contain a top-level directory like `my-skill-1.0.0/SKILL.md`.
+ *
+ * OpenClaw expects SKILL.md to be an immediate child of the skill folder:
+ *   ~/.openclaw/skills/<skill-name>/SKILL.md
+ */
+function flattenSingleWrapperDir(targetPath: string): void {
+  const entries = readdirSync(targetPath, { withFileTypes: true });
+  // Only flatten if there's exactly one subdirectory and no files at the top level
+  const dirs = entries.filter(e => e.isDirectory());
+  const files = entries.filter(e => e.isFile());
+  if (dirs.length === 1 && files.length === 0) {
+    const wrapperDir = join(targetPath, dirs[0].name);
+    // Check if SKILL.md is inside the wrapper (confirming it's a wrapped archive)
+    if (existsSync(join(wrapperDir, 'SKILL.md'))) {
+      logger.info(`Flattening wrapper directory: ${dirs[0].name}`);
+      const innerEntries = readdirSync(wrapperDir, { withFileTypes: true });
+      for (const inner of innerEntries) {
+        const src = join(wrapperDir, inner.name);
+        const dest = join(targetPath, inner.name);
+        renameSync(src, dest);
+      }
+      // Remove the now-empty wrapper directory
+      rmSync(wrapperDir, { recursive: true, force: true });
+    }
+  }
+}
+
+/**
+ * Try to read the skillKey from SKILL.md frontmatter metadata.openclaw.skillKey.
+ * Falls back to the folder name if not found.
+ */
+/**
+ * Fix YAML frontmatter in SKILL.md: quote `description` values that contain
+ * colons (`: `), which YAML misinterprets as nested mappings.
+ */
+function fixSkillMdYamlQuoting(targetPath: string): void {
+  const skillMdPath = join(targetPath, 'SKILL.md');
+  if (!existsSync(skillMdPath)) return;
+  try {
+    const content = readFileSync(skillMdPath, 'utf-8');
+    const fmMatch = content.match(/^(---\s*\n)([\s\S]*?)(\n---)/);
+    if (!fmMatch) return;
+    const [fullMatch, open, fm, close] = fmMatch;
+    // Find unquoted description lines that contain `: ` (YAML-breaking colons)
+    const fixed = fm.replace(
+      /^(description:\s*)(?!["'])(.*:.*)$/m,
+      (_match, prefix: string, value: string) => {
+        // Escape any existing double quotes in the value and wrap in double quotes
+        const escaped = value.replace(/"/g, '\\"');
+        return `${prefix}"${escaped}"`;
+      }
+    );
+    if (fixed !== fm) {
+      const newContent = content.replace(fullMatch, `${open}${fixed}${close}`);
+      writeFileSync(skillMdPath, newContent, 'utf-8');
+      logger.info(`Fixed YAML quoting in ${skillMdPath}`);
+    }
+  } catch (err) {
+    logger.warn(`Could not fix YAML quoting in ${skillMdPath}: ${String(err)}`);
+  }
+}
+
+function readSkillKeyFromMd(targetPath: string): string | null {
+  const skillMdPath = join(targetPath, 'SKILL.md');
+  if (!existsSync(skillMdPath)) return null;
+  try {
+    const content = readFileSync(skillMdPath, 'utf-8');
+    // Parse YAML frontmatter between --- markers
+    const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!fmMatch) return null;
+    const fm = fmMatch[1];
+    // Look for skillKey in the metadata.openclaw block (JSON embedded in YAML)
+    const skillKeyMatch = fm.match(/"skillKey"\s*:\s*"([^"]+)"/);
+    if (skillKeyMatch) return skillKeyMatch[1];
+    // Also try YAML-style skillKey
+    const yamlMatch = fm.match(/skillKey\s*:\s*['"]?([^\s'"]+)['"]?/);
+    if (yamlMatch) return yamlMatch[1];
+    // Fall back to the `name` field (OpenClaw uses name as skillKey when metadata.skillKey is absent)
+    const nameMatch = fm.match(/^name\s*:\s*['"]?([^\s'"]+)['"]?/m);
+    if (nameMatch) return nameMatch[1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function registerSkillImportHandler(gatewayManager: GatewayManager): void {
+  ipcMain.handle('skill:import', async () => {
+    try {
+      const openResult = await dialog.showOpenDialog({
+        title: 'Import Skill',
+        filters: [
+          { name: 'Skill Archives', extensions: ['zip', 'tar.gz', 'tgz'] },
+        ],
+        properties: ['openFile'],
+      });
+      if (openResult.canceled || !openResult.filePaths.length) {
+        return { success: false, error: 'cancelled' };
+      }
+
+      const archivePath = openResult.filePaths[0];
+      const folderName = skillFolderNameFromArchive(archivePath);
+      if (!folderName) {
+        return { success: false, error: 'Could not determine skill folder name from archive' };
+      }
+
+      const skillsDir = join(homedir(), '.openclaw', 'skills');
+      const targetPath = join(skillsDir, folderName);
+
+      // Ensure skills directory exists
+      if (!existsSync(skillsDir)) {
+        mkdirSync(skillsDir, { recursive: true });
+      }
+
+      // Clean existing target folder if present, then recreate
+      if (existsSync(targetPath)) {
+        rmSync(targetPath, { recursive: true, force: true });
+      }
+      mkdirSync(targetPath, { recursive: true });
+
+      let fileCount = 0;
+
+      if (isTarGz(archivePath)) {
+        const normalizedTarget = normalize(targetPath + '/');
+
+        await tar.extract({
+          file: archivePath,
+          cwd: targetPath,
+          filter: (entryPath: string) => {
+            if (entryPath.startsWith('/') || entryPath.includes('..')) {
+              logger.warn(`Skipping unsafe path in skill import: ${entryPath}`);
+              return false;
+            }
+            const resolved = resolve(targetPath, entryPath);
+            if (!resolved.startsWith(normalizedTarget)) {
+              logger.warn(`Skipping unsafe resolved path in skill import: ${entryPath}`);
+              return false;
+            }
+            return true;
+          },
+          onReadEntry: (entry) => {
+            if (entry.type === 'File') fileCount++;
+          },
+        });
+      } else {
+        const zip = new AdmZip(archivePath);
+        const entries = zip.getEntries();
+        const normalizedTarget = normalize(targetPath + '/');
+
+        for (const entry of entries) {
+          if (entry.isDirectory) continue;
+          const resolved = resolve(targetPath, entry.entryName);
+          if (!resolved.startsWith(normalizedTarget)) {
+            logger.warn(`Skipping unsafe path in skill import: ${entry.entryName}`);
+            continue;
+          }
+          const targetDir = dirname(resolved);
+          if (!existsSync(targetDir)) {
+            mkdirSync(targetDir, { recursive: true });
+          }
+          writeFileSync(resolved, entry.getData());
+          fileCount++;
+        }
+      }
+
+      // Flatten wrapper directory if the archive had a single top-level folder
+      // (e.g., my-skill-1.0.0.zip containing my-skill-1.0.0/SKILL.md)
+      flattenSingleWrapperDir(targetPath);
+
+      // Fix YAML frontmatter: quote descriptions containing colons to prevent YAML parse errors
+      fixSkillMdYamlQuoting(targetPath);
+
+      // Validate that SKILL.md exists after extraction
+      if (!existsSync(join(targetPath, 'SKILL.md'))) {
+        logger.warn(`No SKILL.md found in imported skill at ${targetPath}`);
+        return {
+          success: true,
+          fileCount,
+          folderName,
+          warning: 'Skill extracted but no SKILL.md found. The skill may not be recognized by OpenClaw.',
+        };
+      }
+
+      // Determine the skill key (from SKILL.md metadata or folder name)
+      const skillKey = readSkillKeyFromMd(targetPath) || folderName;
+
+      logger.info(`Skill imported to ${targetPath} (${fileCount} files, key: ${skillKey}). Enabling via gateway...`);
+
+      // Enable the skill via gateway RPC so it becomes active in config
+      try {
+        await gatewayManager.rpc('skills.update', { skillKey, enabled: true });
+        logger.info(`Skill "${skillKey}" enabled via gateway RPC`);
+      } catch (enableErr) {
+        logger.warn(`Could not auto-enable skill "${skillKey}" via RPC: ${String(enableErr)}`);
+        // Not fatal — skill is imported, user can enable manually
+      }
+
+      return { success: true, fileCount, folderName, skillKey };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('Skill import failed:', message);
       return { success: false, error: message };
     }
   });
