@@ -78,6 +78,7 @@ import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
 import { getProviderConfig, getProviderDefaultModel } from '../utils/provider-registry';
 import AdmZip from 'adm-zip';
+import * as tar from 'tar';
 
 /**
  * Register all IPC handlers
@@ -2567,6 +2568,30 @@ function registerConfigBundleHandlers(): void {
   });
 }
 
+/** Directories to skip when walking for workspace archive */
+const ARCHIVE_SKIP_DIRS = new Set(['node_modules', '.git', '__pycache__']);
+
+/** Count files recursively (for reporting after tar export) */
+function countFiles(dir: string): number {
+  let count = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (ARCHIVE_SKIP_DIRS.has(entry.name)) continue;
+      count += countFiles(fullPath);
+    } else if (entry.isFile()) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Check if a file path ends with .tar.gz or .tgz */
+function isTarGz(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return lower.endsWith('.tar.gz') || lower.endsWith('.tgz');
+}
+
 /**
  * Workspace archive export/import handlers
  */
@@ -2583,36 +2608,62 @@ function registerWorkspaceArchiveHandlers(): void {
 
       const result = await dialog.showSaveDialog({
         defaultPath,
-        filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+        filters: [
+          { name: 'ZIP Archive', extensions: ['zip'] },
+          { name: 'Gzipped Tar Archive', extensions: ['tar.gz', 'tgz'] },
+        ],
       });
       if (result.canceled || !result.filePath) {
         return { success: false, error: 'cancelled' };
       }
 
-      const zip = new AdmZip();
-      let fileCount = 0;
+      const outputPath = result.filePath;
 
-      const walkAndAdd = (dir: string, baseDir: string) => {
-        const dirEntries = readdirSync(dir, { withFileTypes: true });
-        for (const entry of dirEntries) {
-          const fullPath = join(dir, entry.name);
-          if (entry.isDirectory()) {
-            if (['node_modules', '.git', '__pycache__'].includes(entry.name)) continue;
-            walkAndAdd(fullPath, baseDir);
-          } else if (entry.isFile()) {
-            const relativePath = fullPath.slice(baseDir.length + 1);
-            const relativeDir = dirname(relativePath);
-            zip.addLocalFile(fullPath, relativeDir === '.' ? '' : relativeDir);
-            fileCount++;
+      if (isTarGz(outputPath)) {
+        // tar.gz export using the tar package
+        // Build a filter to exclude unwanted directories
+        await tar.create(
+          {
+            gzip: true,
+            file: outputPath,
+            cwd: params.rootPath,
+            filter: (entryPath: string) => {
+              const parts = entryPath.split('/');
+              return !parts.some((p) => ARCHIVE_SKIP_DIRS.has(p));
+            },
+          },
+          ['.'],
+        );
+        const fileCount = countFiles(params.rootPath);
+        logger.info(`Workspace exported (tar.gz): ${outputPath} (${fileCount} files)`);
+        return { success: true, filePath: outputPath, fileCount };
+      } else {
+        // ZIP export using AdmZip
+        const zip = new AdmZip();
+        let fileCount = 0;
+
+        const walkAndAdd = (dir: string, baseDir: string) => {
+          const dirEntries = readdirSync(dir, { withFileTypes: true });
+          for (const entry of dirEntries) {
+            const fullPath = join(dir, entry.name);
+            if (entry.isDirectory()) {
+              if (ARCHIVE_SKIP_DIRS.has(entry.name)) continue;
+              walkAndAdd(fullPath, baseDir);
+            } else if (entry.isFile()) {
+              const relativePath = fullPath.slice(baseDir.length + 1);
+              const relativeDir = dirname(relativePath);
+              zip.addLocalFile(fullPath, relativeDir === '.' ? '' : relativeDir);
+              fileCount++;
+            }
           }
-        }
-      };
+        };
 
-      walkAndAdd(params.rootPath, params.rootPath);
-      zip.writeZip(result.filePath);
+        walkAndAdd(params.rootPath, params.rootPath);
+        zip.writeZip(outputPath);
 
-      logger.info(`Workspace exported: ${result.filePath} (${fileCount} files)`);
-      return { success: true, filePath: result.filePath, fileCount };
+        logger.info(`Workspace exported (zip): ${outputPath} (${fileCount} files)`);
+        return { success: true, filePath: outputPath, fileCount };
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error('Workspace export failed:', message);
@@ -2627,37 +2678,79 @@ function registerWorkspaceArchiveHandlers(): void {
       }
 
       const openResult = await dialog.showOpenDialog({
-        filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+        filters: [
+          { name: 'Archives', extensions: ['zip', 'tar.gz', 'tgz'] },
+        ],
         properties: ['openFile'],
       });
       if (openResult.canceled || !openResult.filePaths.length) {
         return { success: false, error: 'cancelled' };
       }
 
-      const zipPath = openResult.filePaths[0];
-      const zip = new AdmZip(zipPath);
-      const entries = zip.getEntries();
-      let fileCount = 0;
+      const archivePath = openResult.filePaths[0];
 
-      // Zip-slip protection
-      const normalizedTarget = normalize(params.targetPath + '/');
-      for (const entry of entries) {
-        if (entry.isDirectory) continue;
-        const resolved = resolve(params.targetPath, entry.entryName);
-        if (!resolved.startsWith(normalizedTarget)) {
-          logger.warn(`Skipping unsafe path in workspace import: ${entry.entryName}`);
-          continue;
+      if (isTarGz(archivePath)) {
+        // tar.gz import using the tar package
+        // Ensure target directory exists
+        if (!existsSync(params.targetPath)) {
+          mkdirSync(params.targetPath, { recursive: true });
         }
-        const targetDir = dirname(resolved);
-        if (!existsSync(targetDir)) {
-          mkdirSync(targetDir, { recursive: true });
+
+        // Extract with path-slip protection via strip and the tar package's
+        // built-in safeguards. We also use a filter to reject absolute paths
+        // and paths with '..' components.
+        const normalizedTarget = normalize(params.targetPath + '/');
+        let fileCount = 0;
+
+        await tar.extract({
+          file: archivePath,
+          cwd: params.targetPath,
+          filter: (entryPath: string) => {
+            // Reject absolute paths and path traversal
+            if (entryPath.startsWith('/') || entryPath.includes('..')) {
+              logger.warn(`Skipping unsafe path in workspace import: ${entryPath}`);
+              return false;
+            }
+            const resolved = resolve(params.targetPath, entryPath);
+            if (!resolved.startsWith(normalizedTarget)) {
+              logger.warn(`Skipping unsafe resolved path in workspace import: ${entryPath}`);
+              return false;
+            }
+            return true;
+          },
+          onReadEntry: (entry) => {
+            if (entry.type === 'File') fileCount++;
+          },
+        });
+
+        logger.info(`Workspace imported (tar.gz) to ${params.targetPath} (${fileCount} files)`);
+        return { success: true, fileCount };
+      } else {
+        // ZIP import using AdmZip
+        const zip = new AdmZip(archivePath);
+        const entries = zip.getEntries();
+        let fileCount = 0;
+
+        // Zip-slip protection
+        const normalizedTarget = normalize(params.targetPath + '/');
+        for (const entry of entries) {
+          if (entry.isDirectory) continue;
+          const resolved = resolve(params.targetPath, entry.entryName);
+          if (!resolved.startsWith(normalizedTarget)) {
+            logger.warn(`Skipping unsafe path in workspace import: ${entry.entryName}`);
+            continue;
+          }
+          const targetDir = dirname(resolved);
+          if (!existsSync(targetDir)) {
+            mkdirSync(targetDir, { recursive: true });
+          }
+          writeFileSync(resolved, entry.getData());
+          fileCount++;
         }
-        writeFileSync(resolved, entry.getData());
-        fileCount++;
+
+        logger.info(`Workspace imported (zip) to ${params.targetPath} (${fileCount} files)`);
+        return { success: true, fileCount };
       }
-
-      logger.info(`Workspace imported to ${params.targetPath} (${fileCount} files)`);
-      return { success: true, fileCount };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error('Workspace import failed:', message);

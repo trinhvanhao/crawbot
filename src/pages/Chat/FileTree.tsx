@@ -428,6 +428,7 @@ export function FileTree() {
   const openFolder = useFileBrowserStore((s) => s.openFolder);
   const setRootPath = useFileBrowserStore((s) => s.setRootPath);
   const refreshTree = useFileBrowserStore((s) => s.refreshTree);
+  const loadDirectory = useFileBrowserStore((s) => s.loadDirectory);
   const loading = useFileBrowserStore((s) => s.loading);
   const toggleDir = useFileBrowserStore((s) => s.toggleDir);
   const selectFile = useFileBrowserStore((s) => s.selectFile);
@@ -681,10 +682,26 @@ export function FileTree() {
   }, [agents, selectedAgentId, agentDefaults, setRootPath]);
 
   /* ── Workspace export/import ── */
+
+  // Find the first selected directory, or fall back to rootPath
+  const getTargetDir = useCallback((): string | null => {
+    if (selectedPaths.size > 0) {
+      for (const p of selectedPaths) {
+        // Check if this path is a directory by looking it up in the entries cache
+        for (const dirEntries of Object.values(entries)) {
+          const match = dirEntries.find((e) => e.path === p && e.isDirectory);
+          if (match) return match.path;
+        }
+      }
+    }
+    return rootPath;
+  }, [selectedPaths, entries, rootPath]);
+
   const handleExport = useCallback(async () => {
-    if (!rootPath) return;
+    const target = getTargetDir();
+    if (!target) return;
     try {
-      const result = (await ipc.invoke('workspace:export', { rootPath })) as {
+      const result = (await ipc.invoke('workspace:export', { rootPath: target })) as {
         success: boolean;
         filePath?: string;
         fileCount?: number;
@@ -698,27 +715,35 @@ export function FileTree() {
     } catch (err) {
       toast.error('Export failed: ' + String(err));
     }
-  }, [rootPath]);
+  }, [getTargetDir]);
 
   const handleImport = useCallback(async () => {
-    if (!rootPath) return;
+    const target = getTargetDir();
+    if (!target) return;
 
     try {
-      const result = (await ipc.invoke('workspace:import', { targetPath: rootPath })) as {
+      const result = (await ipc.invoke('workspace:import', { targetPath: target })) as {
         success: boolean;
         fileCount?: number;
         error?: string;
       };
       if (result.success) {
-        toast.success(`Imported ${result.fileCount} files`);
-        refreshTree();
+        toast.success(`Imported ${result.fileCount} files to ${target.split('/').pop()}`);
+        await refreshTree();
+        // Also reload the target dir and expand it if it's a subfolder
+        if (target !== rootPath) {
+          await loadDirectory(target);
+          if (!expandedDirs.has(target)) {
+            toggleDir(target);
+          }
+        }
       } else if (result.error !== 'cancelled') {
         toast.error(result.error || 'Import failed');
       }
     } catch (err) {
       toast.error('Import failed: ' + String(err));
     }
-  }, [rootPath, refreshTree]);
+  }, [getTargetDir, refreshTree, loadDirectory, rootPath, expandedDirs, toggleDir]);
 
   /* ── Create new file/folder ── */
   const handleNewItemSubmit = useCallback(async (name: string) => {
