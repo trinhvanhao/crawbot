@@ -23,6 +23,7 @@ import { GatewayEventType, JsonRpcNotification, isNotification, isResponse } fro
 import { logger } from '../utils/logger';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
+import { prepareEnvPolyfillForChild } from './env-polyfill-helper';
 import {
   loadOrCreateDeviceIdentity,
   signDevicePayload,
@@ -664,6 +665,16 @@ export class GatewayManager extends EventEmitter {
         if (!existingNodeOpts.includes('--disable-warning=ExperimentalWarning') &&
             !existingNodeOpts.includes('--no-warnings')) {
           spawnEnv['NODE_OPTIONS'] = `${existingNodeOpts} --disable-warning=ExperimentalWarning`.trim();
+        }
+
+        // On macOS packaged, the Electron Helper binary disables process.env
+        // (node_main.cc:148). Use --require to inject a polyfill that restores it
+        // from a temp JSON file before OpenClaw loads its ESM dependencies.
+        const polyfillArgs = prepareEnvPolyfillForChild(spawnEnv);
+        if (polyfillArgs.length > 0) {
+          // Also pass --disable-warning as a direct arg since NODE_OPTIONS env is disabled
+          args = ['--disable-warning=ExperimentalWarning', ...polyfillArgs, ...args];
+          logger.debug(`Env polyfill injected into gateway args`);
         }
       }
 

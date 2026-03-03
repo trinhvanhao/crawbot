@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { app, shell } from 'electron';
 import { getOpenClawConfigDir, ensureDir, getClawHubCliBinPath, getClawHubCliEntryPath } from '../utils/paths';
+import { prepareEnvPolyfillForChild } from './env-polyfill-helper';
 
 export interface ClawHubSearchParams {
     query: string;
@@ -82,12 +83,9 @@ export class ClawHubService {
                 return;
             }
 
-            const commandArgs = this.useNodeRunner ? [this.cliEntryPath, ...args] : args;
-            const displayCommand = [this.cliPath, ...commandArgs].join(' ');
-            console.log(`Running ClawHub command: ${displayCommand}`);
-
+            let commandArgs = this.useNodeRunner ? [this.cliEntryPath, ...args] : args;
             const isWin = process.platform === 'win32';
-            const env = {
+            const env: Record<string, string | undefined> = {
                 ...process.env,
                 CI: 'true',
                 FORCE_COLOR: '0', // Disable colors for easier parsing
@@ -95,13 +93,26 @@ export class ClawHubService {
             if (this.useNodeRunner) {
                 env.ELECTRON_RUN_AS_NODE = '1';
             }
+            const spawnEnv = {
+                ...env,
+                CLAWHUB_WORKDIR: this.workDir,
+            };
+
+            // In packaged mode, inject env polyfill to work around disabled process.env
+            if (this.useNodeRunner) {
+                const polyfillArgs = prepareEnvPolyfillForChild(spawnEnv);
+                if (polyfillArgs.length > 0) {
+                    commandArgs = [...polyfillArgs, ...commandArgs];
+                }
+            }
+
+            const displayCommand = [this.cliPath, ...commandArgs].join(' ');
+            console.log(`Running ClawHub command: ${displayCommand}`);
+
             const child = spawn(this.cliPath, commandArgs, {
                 cwd: this.workDir,
                 shell: isWin && !this.useNodeRunner,
-                env: {
-                    ...env,
-                    CLAWHUB_WORKDIR: this.workDir,
-                },
+                env: spawnEnv,
             });
 
             let stdout = '';
