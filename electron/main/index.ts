@@ -366,6 +366,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', async () => {
   isQuitting = true;
+  // Clean up LibreOffice conversion temp files
+  const { cleanupTempDirs } = await import('../utils/libreoffice');
+  cleanupTempDirs();
   await gatewayManager.stop();
 });
 

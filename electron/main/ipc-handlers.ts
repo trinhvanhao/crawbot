@@ -3,8 +3,8 @@
  * Registers all IPC handlers for main-renderer communication
  */
 import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
-import { existsSync, copyFileSync, cpSync, statSync, readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, rmSync, watch, type FSWatcher } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, copyFileSync, cpSync, statSync, readFileSync, readdirSync, writeFileSync, mkdirSync, mkdtempSync, renameSync, rmSync, watch, type FSWatcher } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join, extname, basename, dirname, normalize, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
@@ -593,41 +593,52 @@ function registerAgentHandlers(): void {
         return { success: true, sheets, format: 'spreadsheet' };
       }
 
-      // --- Presentations (.pptx) — extract slide text content ---
+      // --- Presentations (.pptx) — pure JS HTML conversion ---
       if (ext === 'pptx') {
         try {
-          const AdmZip = (await import('adm-zip')).default;
-          const zip = new AdmZip(buffer);
-
-          const slides: { index: number; text: string }[] = [];
-          const entries = zip.getEntries();
-          const slideEntries = entries
-            .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName))
-            .sort((a, b) => {
-              const numA = parseInt(a.entryName.match(/slide(\d+)/)?.[1] ?? '0');
-              const numB = parseInt(b.entryName.match(/slide(\d+)/)?.[1] ?? '0');
-              return numA - numB;
-            });
-
-          for (const entry of slideEntries) {
-            const xml = entry.getData().toString('utf-8');
-            // Extract text from <a:t> tags
-            const texts: string[] = [];
-            const regex = /<a:t[^>]*>([^<]*)<\/a:t>/g;
-            let match;
-            while ((match = regex.exec(xml)) !== null) {
-              if (match[1].trim()) texts.push(match[1]);
-            }
-            const idx = parseInt(entry.entryName.match(/slide(\d+)/)?.[1] ?? '0');
-            slides.push({ index: idx, text: texts.join('\n') });
-          }
-          return { success: true, slides, format: 'presentation' };
-        } catch {
+          const { convertPptxToHtml } = await import('../utils/pptx-to-html');
+          const result = await convertPptxToHtml(buffer);
+          return {
+            success: true,
+            slidesHtml: result.slides,
+            slideWidth: result.slideWidth,
+            slideHeight: result.slideHeight,
+            format: 'presentation-html',
+          };
+        } catch (htmlError) {
+          console.error('pptx-to-html conversion failed:', htmlError);
           return { success: false, error: 'Cannot parse presentation file' };
         }
       }
 
-      // --- Fallback: unsupported legacy formats (.doc, .ppt, .odt, .odp, .rtf) ---
+      // --- Legacy presentations (.ppt, .odp) — LibreOffice PDF conversion ---
+      if (['ppt', 'odp'].includes(ext)) {
+        const { findLibreOffice, convertToPdf, trackTempDir } = await import(
+          '../utils/libreoffice'
+        );
+        const sofficePath = findLibreOffice();
+
+        if (sofficePath) {
+          try {
+            const tmpDir = mkdtempSync(join(tmpdir(), 'crawbot-pptx-'));
+            const pdfPath = await convertToPdf(sofficePath, filePath, tmpDir);
+            const pdfUrl = pathToFileURL(pdfPath)
+              .href.replace(/^file:\/\/\//, 'local-file://localhost/');
+            const pdfStat = statSync(pdfPath);
+            trackTempDir(tmpDir);
+            return { success: true, format: 'presentation-pdf', url: pdfUrl, size: pdfStat.size };
+          } catch (conversionError) {
+            console.error('LibreOffice conversion failed:', conversionError);
+          }
+        }
+
+        return {
+          success: false,
+          error: `Preview not supported for .${ext} — open in default app`,
+        };
+      }
+
+      // --- Fallback: unsupported legacy formats (.doc, .odt, .rtf) ---
       return { success: false, error: `Preview not supported for .${ext} files` };
     } catch (error) {
       console.error('Failed to convert office file:', error);

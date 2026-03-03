@@ -7,7 +7,7 @@
  * - Office documents: converted HTML (mammoth for docx, SheetJS for xlsx, XML parse for pptx)
  *   with fallback to "Open in Default App" for unsupported legacy formats.
  */
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   FileAudio,
@@ -193,6 +193,69 @@ function PresentationViewer({ slides }: { slides: { index: number; text: string 
   );
 }
 
+/** Rendered presentation slides (HTML from pptx-to-html — images, shapes, formatting) */
+function PresentationHtmlViewer({
+  slidesHtml,
+  slideWidth,
+  slideHeight,
+}: {
+  slidesHtml: string[];
+  slideWidth: number;
+  slideHeight: number;
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width - 32); // 32px for padding
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = containerWidth > 0 ? Math.min(containerWidth / slideWidth, 1) : 0;
+
+  return (
+    <div ref={containerRef} className="flex-1 overflow-auto p-4 space-y-4 bg-muted/20">
+      {slidesHtml.map((html, i) => (
+        <div
+          key={i}
+          className="border border-border rounded-lg overflow-hidden bg-white dark:bg-zinc-900 shadow-sm"
+        >
+          <div className="text-[10px] text-muted-foreground px-3 py-1 border-b border-border bg-muted/30 uppercase tracking-wider">
+            Slide {i + 1}
+          </div>
+          <div
+            style={{
+              width: slideWidth * scale,
+              height: slideHeight * scale,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                width: slideWidth,
+                height: slideHeight,
+              }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        </div>
+      ))}
+      {slidesHtml.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center">No slide content found.</p>
+      )}
+    </div>
+  );
+}
+
 /** Fallback for unsupported office format or conversion error */
 function OfficeErrorFallback({ filePath, error }: { filePath: string; error: string }) {
   const openFileExternal = useFileBrowserStore((s) => s.openFileExternal);
@@ -228,6 +291,16 @@ function OfficeViewer({ data, filePath }: { data: OfficeConvertResult; filePath:
       return <SpreadsheetViewer sheets={data.sheets} />;
     case 'presentation':
       return <PresentationViewer slides={data.slides} />;
+    case 'presentation-html':
+      return (
+        <PresentationHtmlViewer
+          slidesHtml={data.slidesHtml}
+          slideWidth={data.slideWidth}
+          slideHeight={data.slideHeight}
+        />
+      );
+    case 'presentation-pdf':
+      return <PdfViewer url={data.url} />;
     case 'error':
       return <OfficeErrorFallback filePath={filePath} error={data.error} />;
   }

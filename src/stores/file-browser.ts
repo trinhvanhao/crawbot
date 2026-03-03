@@ -16,6 +16,8 @@ export type OfficeConvertResult =
   | { format: 'document'; html: string }
   | { format: 'spreadsheet'; sheets: { name: string; html: string }[] }
   | { format: 'presentation'; slides: { index: number; text: string }[] }
+  | { format: 'presentation-html'; slidesHtml: string[]; slideWidth: number; slideHeight: number }
+  | { format: 'presentation-pdf'; url: string; size?: number }
   | { format: 'error'; error: string };
 
 interface FileBrowserState {
@@ -201,12 +203,26 @@ export const useFileBrowserStore = create<FileBrowserState>((set, get) => ({
           html?: string;
           sheets?: { name: string; html: string }[];
           slides?: { index: number; text: string }[];
+          slidesHtml?: string[];
+          slideWidth?: number;
+          slideHeight?: number;
+          url?: string;
+          size?: number;
           format?: string;
           error?: string;
         };
         if (result.success) {
           let officeData: OfficeConvertResult;
-          if (result.format === 'document' && result.html) {
+          if (result.format === 'presentation-html' && result.slidesHtml) {
+            officeData = {
+              format: 'presentation-html',
+              slidesHtml: result.slidesHtml,
+              slideWidth: result.slideWidth ?? 1280,
+              slideHeight: result.slideHeight ?? 720,
+            };
+          } else if (result.format === 'presentation-pdf' && result.url) {
+            officeData = { format: 'presentation-pdf', url: result.url, size: result.size };
+          } else if (result.format === 'document' && result.html) {
             officeData = { format: 'document', html: result.html };
           } else if (result.format === 'spreadsheet' && result.sheets) {
             officeData = { format: 'spreadsheet', sheets: result.sheets };
