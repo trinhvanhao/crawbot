@@ -7,47 +7,47 @@
  *
  * This module provides a helper to inject a --require polyfill that restores
  * process.env from a temp JSON file before the target script runs.
+ *
+ * The env file path is hardcoded into the generated polyfill script (not
+ * passed as a CLI arg) because the Electron binary rejects unknown options.
  */
 import { app } from 'electron';
 import path from 'path';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 
 /**
- * Inline polyfill source (CJS). Written to a temp file and loaded via --require.
+ * Build the polyfill source with the env file path baked in.
+ * This avoids passing custom CLI args that Electron rejects.
  */
-const ENV_POLYFILL_SOURCE = `'use strict';
+function buildPolyfillSource(envFilePath: string): string {
+  // Use JSON.stringify to safely embed the path as a string literal
+  const safePath = JSON.stringify(envFilePath);
+  return `'use strict';
 if (!process.env || typeof process.env !== 'object') {
   var envData = {};
-  var envArgIdx = -1;
-  for (var i = 0; i < process.argv.length; i++) {
-    if (process.argv[i] === '--crawbot-env' && i + 1 < process.argv.length) {
-      envArgIdx = i;
-      try {
-        var fs = require('fs');
-        var raw = fs.readFileSync(process.argv[i + 1], 'utf-8');
-        var parsed = JSON.parse(raw);
-        for (var key in parsed) {
-          if (Object.prototype.hasOwnProperty.call(parsed, key)) {
-            envData[key] = parsed[key];
-          }
-        }
-        try { fs.unlinkSync(process.argv[i + 1]); } catch (_e) {}
-      } catch (_err) {}
-      break;
+  try {
+    var fs = require('fs');
+    var raw = fs.readFileSync(${safePath}, 'utf-8');
+    var parsed = JSON.parse(raw);
+    for (var key in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+        envData[key] = parsed[key];
+      }
     }
-  }
+    try { fs.unlinkSync(${safePath}); } catch (_e) {}
+  } catch (_err) {}
   Object.defineProperty(process, 'env', {
     value: envData, writable: true, configurable: true, enumerable: true
   });
-  if (envArgIdx >= 0) { process.argv.splice(envArgIdx, 2); }
 }
 `;
+}
 
 /**
  * Prepare env polyfill args for a child process spawned with the Electron binary.
  *
  * In packaged mode, writes the spawn environment to a temp JSON file and returns
- * args to prepend (--require polyfill.cjs --crawbot-env env.json).
+ * args to prepend (just --require polyfill.cjs, no custom flags).
  *
  * In dev mode, returns an empty array (no polyfill needed).
  */
@@ -71,9 +71,10 @@ export function prepareEnvPolyfillForChild(
   }
   writeFileSync(envFilePath, JSON.stringify(envObj), 'utf-8');
 
-  // Write the polyfill script to a temp file
-  const polyfillPath = path.join(tmpDir, 'env-polyfill.cjs');
-  writeFileSync(polyfillPath, ENV_POLYFILL_SOURCE, 'utf-8');
+  // Write the polyfill script with the env path baked in
+  // Each spawn gets a unique polyfill to avoid race conditions
+  const polyfillPath = path.join(tmpDir, `env-polyfill-${Date.now()}.cjs`);
+  writeFileSync(polyfillPath, buildPolyfillSource(envFilePath), 'utf-8');
 
-  return ['--require', polyfillPath, '--crawbot-env', envFilePath];
+  return ['--require', polyfillPath];
 }
