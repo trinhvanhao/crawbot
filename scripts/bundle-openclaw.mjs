@@ -190,7 +190,60 @@ for (const [realPath, pkgName] of collected) {
   }
 }
 
-// 6. Verify the bundle
+// 6. Clean up unnecessary files to reduce total file count for code signing
+//    This is critical on macOS where every file in the .app bundle gets signed.
+const REMOVE_DIRS = new Set([
+  'test', 'tests', '__tests__', '__mocks__', '__fixtures__',
+  '.github', 'docs', 'doc', 'examples', 'example',
+  'coverage', '.nyc_output', 'benchmark', 'benchmarks',
+  'fixtures', 'man', '.vscode', '.idea', 'typings',
+]);
+const REMOVE_EXTENSIONS = [
+  '.d.ts', '.d.ts.map', '.d.mts', '.d.mts.map', '.d.cts', '.d.cts.map',
+  '.js.map', '.mjs.map', '.cjs.map', '.ts.map',
+  '.ts', '.tsx', '.mts', '.cts',
+  '.md', '.markdown', '.rst',
+  '.gyp', '.gypi',
+  '.o', '.obj', '.a', '.lib',
+  '.cc', '.cpp', '.c', '.h', '.hpp',
+  '.coffee', '.flow', '.patch', '.tgz',
+];
+const REMOVE_FILES = new Set([
+  '.DS_Store', '.npmignore', '.eslintrc', '.eslintrc.json', '.eslintrc.js',
+  '.prettierrc', '.prettierrc.json', '.prettierrc.js',
+  'tsconfig.json', 'tsconfig.build.json', 'tslint.json',
+  '.editorconfig', '.travis.yml', '.babelrc', '.babelrc.js',
+  'Makefile', 'Gruntfile.js', 'Gulpfile.js', 'rollup.config.js',
+  'webpack.config.js', 'jest.config.js', 'karma.conf.js',
+  'appveyor.yml', '.zuul.yml', 'binding.gyp',
+]);
+
+function cleanupDir(dir) {
+  let count = 0;
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (REMOVE_DIRS.has(entry.name)) {
+        try { fs.rmSync(full, { recursive: true, force: true }); count++; } catch {}
+      } else {
+        count += cleanupDir(full);
+      }
+    } else if (entry.isFile()) {
+      if (REMOVE_FILES.has(entry.name) || REMOVE_EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
+        try { fs.rmSync(full, { force: true }); count++; } catch {}
+      }
+    }
+  }
+  return count;
+}
+
+echo`🧹 Cleaning up unnecessary files in bundle...`;
+const cleanedCount = cleanupDir(outputNodeModules);
+echo`   Removed ${cleanedCount} unnecessary files/directories`;
+
+// 7. Verify the bundle
 const entryExists = fs.existsSync(path.join(OUTPUT, 'openclaw.mjs'));
 const distExists = fs.existsSync(path.join(OUTPUT, 'dist', 'entry.js'));
 
@@ -207,15 +260,10 @@ if (!entryExists || !distExists) {
   process.exit(1);
 }
 
-// 7. Sync CrawBot version to match bundled OpenClaw version
+// 8. Log bundled OpenClaw version (CrawBot version is managed independently)
 const openclawPkg = JSON.parse(fs.readFileSync(path.join(OUTPUT, 'package.json'), 'utf-8'));
 const rootPkgPath = path.join(ROOT, 'package.json');
 const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
 
-if (openclawPkg.version && rootPkg.version !== openclawPkg.version) {
-  rootPkg.version = openclawPkg.version;
-  fs.writeFileSync(rootPkgPath, JSON.stringify(rootPkg, null, 4) + '\n');
-  echo`🔄 Synced CrawBot version to ${openclawPkg.version} (matching openclaw)`;
-} else {
-  echo`✅ CrawBot version already matches openclaw (${rootPkg.version})`;
-}
+echo`   Bundled OpenClaw version: ${openclawPkg.version}`;
+echo`   CrawBot version: ${rootPkg.version}`;

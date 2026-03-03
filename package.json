@@ -1,6 +1,6 @@
 {
     "name": "crawbot",
-    "version": "2026.3.4",
+    "version": "2026.3.2",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@whiskeysockets/baileys",
@@ -9,7 +9,10 @@
             "node-llama-cpp",
             "protobufjs",
             "sharp"
-        ]
+        ],
+        "overrides": {
+            "isbinaryfile": "^5.0.7"
+        }
     },
     "description": "CrawBot - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
@@ -68,7 +71,7 @@
         "i18next": "^25.8.11",
         "lucide-react": "^0.563.0",
         "mammoth": "^1.11.0",
-        "openclaw": "2026.3.1",
+        "openclaw": "2026.3.2",
         "prism-react-renderer": "^2.4.1",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",

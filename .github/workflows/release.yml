@@ -40,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -89,7 +89,10 @@ jobs:
           # Increase file descriptor limit to handle large number of files during code signing
           ulimit -n 65536
           echo "File descriptor limit: $(ulimit -n)"
-          
+
+          # Increase Node.js heap to prevent V8 crash during code signing of many files
+          export NODE_OPTIONS="--max-old-space-size=8192"
+
           pnpm run package:mac
 
       # Windows specific steps

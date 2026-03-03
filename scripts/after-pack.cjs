@@ -18,27 +18,64 @@
 const { cpSync, existsSync, readdirSync, rmSync, statSync } = require('fs');
 const { join } = require('path');
 
+// Directories to remove entirely
+const REMOVE_DIRS = new Set([
+  'test', 'tests', '__tests__', '__mocks__', '__fixtures__',
+  '.github', 'docs', 'doc', 'examples', 'example',
+  'coverage', '.nyc_output', 'benchmark', 'benchmarks',
+  'fixtures', 'man', '.vscode', '.idea', 'typings',
+]);
+
+// File extensions to remove
+const REMOVE_EXTENSIONS = [
+  '.d.ts', '.d.ts.map', '.d.mts', '.d.mts.map', '.d.cts', '.d.cts.map',
+  '.js.map', '.mjs.map', '.cjs.map', '.ts.map',
+  '.ts', '.tsx', '.mts', '.cts', // TypeScript source files
+  '.md', '.markdown', '.rst', '.txt.bak',
+  '.gyp', '.gypi', // node-gyp build files
+  '.o', '.obj', '.a', '.lib', // compiled objects
+  '.cc', '.cpp', '.c', '.h', '.hpp', // C/C++ source
+  '.coffee', // CoffeeScript
+  '.flow', // Flow types
+  '.patch',
+  '.tgz', // tarballs
+];
+
+// Files to remove by exact name
+const REMOVE_FILES = new Set([
+  '.DS_Store', '.npmignore', '.eslintrc', '.eslintrc.json', '.eslintrc.js',
+  '.prettierrc', '.prettierrc.json', '.prettierrc.js',
+  'tsconfig.json', 'tsconfig.build.json', 'tslint.json',
+  '.editorconfig', '.travis.yml', '.babelrc', '.babelrc.js',
+  'Makefile', 'Gruntfile.js', 'Gulpfile.js', 'rollup.config.js',
+  'webpack.config.js', 'jest.config.js', 'karma.conf.js',
+  'appveyor.yml', '.zuul.yml', 'binding.gyp',
+  'HISTORY.md', 'CHANGES.md', 'AUTHORS', 'CONTRIBUTORS',
+]);
+
 /**
  * Recursively remove unnecessary files to reduce code signing overhead
  */
 function cleanupUnnecessaryFiles(dir) {
   let removedCount = 0;
-  
+
   function walk(currentDir) {
-    const entries = readdirSync(currentDir, { withFileTypes: true });
-    
+    let entries;
+    try {
+      entries = readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
     for (const entry of entries) {
       const fullPath = join(currentDir, entry.name);
-      
+
       if (entry.isDirectory()) {
-        // Remove entire test directories
-        if (entry.name === 'test' || entry.name === 'tests' || 
-            entry.name === '__tests__' || entry.name === '.github' ||
-            entry.name === 'docs' || entry.name === 'examples') {
+        if (REMOVE_DIRS.has(entry.name)) {
           try {
             rmSync(fullPath, { recursive: true, force: true });
             removedCount++;
-          } catch (err) {
+          } catch {
             // Ignore errors
           }
         } else {
@@ -46,26 +83,20 @@ function cleanupUnnecessaryFiles(dir) {
         }
       } else if (entry.isFile()) {
         const name = entry.name;
-        // Remove unnecessary file types
-        if (name.endsWith('.d.ts') || name.endsWith('.d.ts.map') ||
-            name.endsWith('.js.map') || name.endsWith('.mjs.map') ||
-            name.endsWith('.ts.map') || name === '.DS_Store' ||
-            name === 'README.md' || name === 'CHANGELOG.md' ||
-            name === 'LICENSE.md' || name === 'CONTRIBUTING.md' ||
-            name.endsWith('.md.txt') || name.endsWith('.markdown') ||
-            name === 'tsconfig.json' || name === '.npmignore' ||
-            name === '.eslintrc' || name === '.prettierrc') {
+        const shouldRemove = REMOVE_FILES.has(name) ||
+          REMOVE_EXTENSIONS.some(ext => name.endsWith(ext));
+        if (shouldRemove) {
           try {
             rmSync(fullPath, { force: true });
             removedCount++;
-          } catch (err) {
+          } catch {
             // Ignore errors
           }
         }
       }
     }
   }
-  
+
   walk(dir);
   return removedCount;
 }
