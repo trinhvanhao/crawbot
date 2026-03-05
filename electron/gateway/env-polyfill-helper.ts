@@ -23,8 +23,7 @@ function buildPolyfillSource(envFilePath: string): string {
   // Use JSON.stringify to safely embed the path as a string literal
   const safePath = JSON.stringify(envFilePath);
   return `'use strict';
-// Always restore env: Electron Helper sets process.env to empty {} (not null),
-// so we must populate it with the saved environment variables unconditionally.
+// Restore process.env in Electron Helper where it is disabled at the C++ level.
 var envData = {};
 try {
   var fs = require('fs');

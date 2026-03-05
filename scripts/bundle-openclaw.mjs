@@ -194,7 +194,7 @@ for (const [realPath, pkgName] of collected) {
 //    This is critical on macOS where every file in the .app bundle gets signed.
 const REMOVE_DIRS = new Set([
   'test', 'tests', '__tests__', '__mocks__', '__fixtures__',
-  '.github', 'docs', 'doc', 'examples', 'example',
+  '.github', 'docs', 'examples', 'example',
   'coverage', '.nyc_output', 'benchmark', 'benchmarks',
   'fixtures', 'man', '.vscode', '.idea', 'typings',
 ]);

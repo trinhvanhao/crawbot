@@ -21,7 +21,7 @@ const { join } = require('path');
 // Directories to remove entirely
 const REMOVE_DIRS = new Set([
   'test', 'tests', '__tests__', '__mocks__', '__fixtures__',
-  '.github', 'docs', 'doc', 'examples', 'example',
+  '.github', 'docs', 'examples', 'example',
   'coverage', '.nyc_output', 'benchmark', 'benchmarks',
   'fixtures', 'man', '.vscode', '.idea', 'typings',
 ]);
