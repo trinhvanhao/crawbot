@@ -43,6 +43,7 @@ const electronAPI = {
         'app:relaunch',
         'app:setAutoStart',
         'app:setStartMinimized',
+        'app:setToolsAutoApprove',
         // Window controls
         'window:minimize',
         'window:maximize',

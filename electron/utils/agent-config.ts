@@ -323,6 +323,31 @@ export function getOpenclawDirPath(): string {
   return OPENCLAW_DIR;
 }
 
+// ── Tools exec config helpers ──────────────────────────────────
+
+/**
+ * Set tools.exec auto-approve config in openclaw.json.
+ * When enabled: sets security="full", ask="off" (agent runs tools freely).
+ * When disabled: sets security="allowlist", ask="on-miss" (safe defaults).
+ * Only touches tools.exec — preserves all other fields inside tools.
+ */
+export function setToolsAutoApprove(enabled: boolean): void {
+  const config = readConfig();
+
+  if (!config.tools) config.tools = {};
+  const tools = config.tools as Record<string, unknown>;
+  const existingExec = (tools.exec as Record<string, unknown>) ?? {};
+
+  if (enabled) {
+    tools.exec = { ...existingExec, security: 'full', ask: 'off' };
+  } else {
+    tools.exec = { ...existingExec, security: 'allowlist', ask: 'on-miss' };
+  }
+
+  writeConfig(config);
+  logger.info('Tools auto-approve updated', { enabled });
+}
+
 // ── Generic file-browser helpers ──────────────────────────────────
 
 const MAX_READ_SIZE = 1 * 1024 * 1024; // 1 MB guard

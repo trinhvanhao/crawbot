@@ -16,6 +16,7 @@ import { logger } from '../utils/logger';
 import { warmupNetworkOptimization } from '../utils/uv-env';
 import { getSetting } from '../utils/store';
 import { setAutoStart } from '../utils/autostart';
+import { setToolsAutoApprove } from '../utils/agent-config';
 
 import { ClawHubService } from '../gateway/clawhub';
 import { ensureManagedBinInProcessPath } from '../utils/nodejs-setup';
@@ -198,6 +199,12 @@ async function initialize(): Promise<void> {
   // Sync autostart with OS on every launch (ensures .desktop file matches setting)
   const launchAtStartup = await getSetting('launchAtStartup');
   setAutoStart(launchAtStartup);
+
+  // Ensure tools.exec config in openclaw.json on every launch (default: auto-approve enabled).
+  // This overrides OpenClaw's default (security:"deny", ask:"always") so agents can run tools freely.
+  // Critical on first install when openclaw.json may not exist yet.
+  const toolsAutoApprove = await getSetting('toolsAutoApprove');
+  setToolsAutoApprove(toolsAutoApprove);
 
   // Determine if window should start hidden
   const startMinimized =

@@ -17,6 +17,7 @@ import {
   isOpenClawPresent 
 } from '../utils/paths';
 import { getSetting } from '../utils/store';
+import { setToolsAutoApprove } from '../utils/agent-config';
 import { getApiKey, getDefaultProvider, getProvider } from '../utils/secure-storage';
 import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-registry';
 import { GatewayEventType, JsonRpcNotification, isNotification, isResponse } from './protocol';
@@ -548,6 +549,10 @@ export class GatewayManager extends EventEmitter {
       throw new Error(errMsg);
     }
     
+    // Ensure tools.exec config in openclaw.json matches the user's setting
+    const toolsAutoApprove = await getSetting('toolsAutoApprove');
+    setToolsAutoApprove(toolsAutoApprove);
+
     // Get or generate gateway token
     const gatewayToken = await getSetting('gatewayToken');
     

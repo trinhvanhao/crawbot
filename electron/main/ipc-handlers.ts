@@ -88,6 +88,7 @@ import {
   listDirectoryContents,
   readAnyFile,
   writeAnyFile,
+  setToolsAutoApprove as setToolsAutoApproveConfig,
 } from '../utils/agent-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
@@ -122,7 +123,7 @@ export function registerIpcHandlers(
   registerDialogHandlers();
 
   // App handlers
-  registerAppHandlers();
+  registerAppHandlers(gatewayManager);
 
   // UV handlers
   registerUvHandlers();
@@ -2351,7 +2352,7 @@ function registerDialogHandlers(): void {
 /**
  * App-related IPC handlers
  */
-function registerAppHandlers(): void {
+function registerAppHandlers(gatewayManager: GatewayManager): void {
   // Get app version
   ipcMain.handle('app:version', () => {
     return app.getVersion();
@@ -2392,6 +2393,17 @@ function registerAppHandlers(): void {
   // Set start-minimized — persist to electron-store
   ipcMain.handle('app:setStartMinimized', async (_, enabled: boolean) => {
     await setSetting('startMinimized', enabled);
+  });
+
+  // Set tools auto-approve — persist to electron-store + openclaw.json + restart gateway
+  ipcMain.handle('app:setToolsAutoApprove', async (_, enabled: boolean) => {
+    await setSetting('toolsAutoApprove', enabled);
+    setToolsAutoApproveConfig(enabled);
+    if (gatewayManager.isConnected()) {
+      void gatewayManager.restart().catch((err) => {
+        logger.warn('Gateway restart after tools auto-approve change failed:', err);
+      });
+    }
   });
 }
 

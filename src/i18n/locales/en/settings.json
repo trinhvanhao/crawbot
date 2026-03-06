@@ -99,6 +99,12 @@
         "autoStart": "Auto-start Gateway",
         "autoStartDesc": "Start Gateway when CrawBot launches"
     },
+    "openclaw": {
+        "title": "OpenClaw",
+        "description": "OpenClaw agent settings",
+        "toolsAutoApprove": "Use tools without approval",
+        "toolsAutoApproveDesc": "Allow AI agents to execute tools and commands without asking for permission"
+    },
     "updates": {
         "title": "Updates",
         "description": "Keep CrawBot up to date",

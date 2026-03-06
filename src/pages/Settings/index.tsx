@@ -57,6 +57,8 @@ export function Settings() {
     setLaunchAtStartup,
     startMinimized,
     setStartMinimized,
+    toolsAutoApprove,
+    setToolsAutoApprove,
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
@@ -453,6 +455,29 @@ export function Settings() {
             <Switch
               checked={gatewayAutoStart}
               onCheckedChange={setGatewayAutoStart}
+            />
+          </div>
+
+        </CardContent>
+      </Card>
+
+      {/* OpenClaw */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('openclaw.title')}</CardTitle>
+          <CardDescription>{t('openclaw.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>{t('openclaw.toolsAutoApprove')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('openclaw.toolsAutoApproveDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={toolsAutoApprove}
+              onCheckedChange={setToolsAutoApprove}
             />
           </div>
         </CardContent>

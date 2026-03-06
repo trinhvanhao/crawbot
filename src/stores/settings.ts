@@ -29,6 +29,9 @@ interface SettingsState {
   sidebarCollapsed: boolean;
   devModeUnlocked: boolean;
 
+  // Agent behavior
+  toolsAutoApprove: boolean;
+
   // Setup
   setupComplete: boolean;
 
@@ -44,6 +47,7 @@ interface SettingsState {
   setAutoDownloadUpdate: (value: boolean) => void;
   setSidebarCollapsed: (value: boolean) => void;
   setDevModeUnlocked: (value: boolean) => void;
+  setToolsAutoApprove: (value: boolean) => void;
   markSetupComplete: () => void;
   resetSettings: () => void;
 }
@@ -64,6 +68,7 @@ const defaultSettings = {
   autoDownloadUpdate: false,
   sidebarCollapsed: false,
   devModeUnlocked: false,
+  toolsAutoApprove: true,
   setupComplete: false,
 };
 
@@ -89,6 +94,10 @@ export const useSettingsStore = create<SettingsState>()(
       setAutoDownloadUpdate: (autoDownloadUpdate) => set({ autoDownloadUpdate }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setDevModeUnlocked: (devModeUnlocked) => set({ devModeUnlocked }),
+      setToolsAutoApprove: (toolsAutoApprove) => {
+        window.electron.ipcRenderer.invoke('app:setToolsAutoApprove', toolsAutoApprove);
+        set({ toolsAutoApprove });
+      },
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),
     }),

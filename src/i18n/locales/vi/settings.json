@@ -99,6 +99,12 @@
         "autoStart": "Tự động khởi động Gateway",
         "autoStartDesc": "Khởi động Gateway khi CrawBot được mở"
     },
+    "openclaw": {
+        "title": "OpenClaw",
+        "description": "Cài đặt OpenClaw agent",
+        "toolsAutoApprove": "Sử dụng công cụ không cần phê duyệt",
+        "toolsAutoApproveDesc": "Cho phép AI agent thực thi công cụ và lệnh mà không cần xin phép"
+    },
     "updates": {
         "title": "Cập nhật",
         "description": "Giữ CrawBot luôn cập nhật",
