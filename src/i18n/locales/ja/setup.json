@@ -1,0 +1,158 @@
+{
+    "steps": {
+        "welcome": {
+            "title": "CrawBot へようこそ",
+            "description": "AI アシスタントの設定準備ができました"
+        },
+        "runtime": {
+            "title": "環境チェック",
+            "description": "システム要件を確認中"
+        },
+        "provider": {
+            "title": "AI プロバイダー",
+            "description": "AI サービスを設定"
+        },
+        "channel": {
+            "title": "チャンネル接続",
+            "description": "メッセージプラットフォームを接続（任意）"
+        },
+        "installing": {
+            "title": "セットアップ中",
+            "description": "必要なコンポーネントをインストール中"
+        },
+        "complete": {
+            "title": "準備完了！",
+            "description": "CrawBot が使えるようになりました"
+        }
+    },
+    "welcome": {
+        "title": "CrawBot へようこそ",
+        "description": "CrawBot は OpenClaw のグラフィカルインターフェースで、お気に入りのメッセージプラットフォームで AI アシスタントを簡単に使えるようにします。",
+        "features": {
+            "noCommand": "コマンドライン不要",
+            "modernUI": "モダンで美しいインターフェース",
+            "bundles": "プリインストール済みスキルバンドル",
+            "crossPlatform": "クロスプラットフォーム対応"
+        }
+    },
+    "runtime": {
+        "title": "環境を確認中",
+        "viewLogs": "ログを表示",
+        "recheck": "再チェック",
+        "nodejs": "Node.js ランタイム",
+        "python": "Python 3.12",
+        "buildtools": "ビルドツール",
+        "buildtoolsDesc": "ネイティブモジュール用 C/C++ コンパイラ（任意）",
+        "cliTools": "CLI ツール",
+        "cliToolsDesc": "AI プロバイダー向け OAuth ログインツール",
+        "openclaw": "OpenClaw パッケージ",
+        "gateway": "Gateway サービス",
+        "startGateway": "Gateway を起動",
+        "status": {
+            "checking": "確認中...",
+            "pending": "保留中",
+            "installing": "インストール中...",
+            "installingNode": "Node.js をダウンロード・インストール中...",
+            "installingTools": "CLI ツールをインストール中...",
+            "success": "Node.js は利用可能です",
+            "nodeFound": "Node.js {{version}}",
+            "nodeInstalled": "Node.js インストール済み（{{version}}）",
+            "toolInstalled": "インストール済み",
+            "toolFailed": "インストール失敗",
+            "allToolsReady": "すべての CLI ツール準備完了",
+            "error": "失敗",
+            "notFound": "見つかりません",
+            "gatewayRunning": "ポート {{port}} で実行中",
+            "packageReady": "OpenClaw パッケージ準備完了",
+            "pythonReady": "Python 3.12 準備完了",
+            "pythonNotFound": "未検出（次のステップでインストール）",
+            "buildtoolsReady": "ビルドツール利用可能",
+            "installingBuildtools": "ビルドツールをインストール中...",
+            "buildtoolsHint": "任意：ネイティブコードパッケージにのみ必要",
+            "pathPersisted": "システム PATH に追加済み"
+        },
+        "issue": {
+            "title": "環境の問題を検出",
+            "desc": "OpenClaw が正しくインストールされていることを確認してください。詳細はログをご覧ください。",
+            "nodeInstallFailed": "Node.js の自動インストールに失敗しました。nodejs.org から手動でインストールしてください。"
+        },
+        "logs": {
+            "title": "アプリケーションログ",
+            "openFolder": "ログフォルダを開く",
+            "close": "閉じる",
+            "noLogs": "（ログはまだありません）"
+        }
+    },
+    "provider": {
+        "label": "モデルプロバイダー",
+        "selectPlaceholder": "プロバイダーを選択...",
+        "baseUrl": "ベース URL",
+        "modelId": "モデル ID",
+        "modelIdDesc": "プロバイダーのモデル識別子（例：deepseek-ai/DeepSeek-V3）",
+        "defaultModel": "デフォルトモデル",
+        "apiKey": "API キー",
+        "save": "保存",
+        "validateSave": "検証して保存",
+        "valid": "プロバイダーの設定に成功しました",
+        "invalid": "API キーが無効です",
+        "storedLocally": "API キーはお使いのコンピュータにローカル保存されます。",
+        "authMethod": "認証方法",
+        "authApiKey": "API キー",
+        "authSetupToken": "セットアップトークン",
+        "authGoogleSignIn": "Google ログイン",
+        "setupTokenInstallHint": "まず、Claude Code がインストールされていない場合はインストールしてください：",
+        "setupTokenInstallCommand": "npm install -g @anthropic-ai/claude-code",
+        "setupTokenInstructions": "次に、以下のコマンドを実行してセットアップトークンを取得してください：",
+        "setupTokenCommand": "claude setup-token",
+        "setupTokenPlaceholder": "セットアップトークンをここに貼り付け...",
+        "pasteTokenSave": "トークンを貼り付けて保存",
+        "signInWithClaude": "Claude でログイン",
+        "signInWithGoogle": "Google でログイン",
+        "signInWithChatGPT": "ChatGPT でログイン",
+        "chatGPTSignIn": "ChatGPT ログイン",
+        "waitingAuth": "ブラウザでの認証を待機中...",
+        "oauthConfigured": "OAuth の設定に成功しました"
+    },
+    "channel": {
+        "title": "メッセージチャンネルを接続",
+        "subtitle": "AI アシスタントを接続するプラットフォームを選択してください。後で設定からチャンネルを追加できます。",
+        "configure": "{{name}} を設定",
+        "howTo": "接続方法：",
+        "viewDocs": "ドキュメントを見る",
+        "validationError": "検証に失敗しました",
+        "connected": "{{name}} 接続済み",
+        "connectedDesc": "チャンネルが設定されました。Gateway の起動時に接続されます。",
+        "configureAnother": "別のチャンネルを設定"
+    },
+    "installing": {
+        "title": "必要なコンポーネントをインストール中",
+        "subtitle": "AI アシスタントに必要なツールをセットアップしています",
+        "progress": "進捗",
+        "status": {
+            "pending": "保留中",
+            "installing": "インストール中...",
+            "installed": "インストール済み",
+            "failed": "失敗"
+        },
+        "error": "セットアップエラー：",
+        "restart": "アプリの再起動をお試しください",
+        "wait": "しばらくお待ちください...",
+        "skip": "このステップをスキップ"
+    },
+    "complete": {
+        "title": "セットアップ完了！",
+        "subtitle": "CrawBot の設定が完了し、使用可能になりました。AI アシスタントとのチャットを始められます。",
+        "provider": "AI プロバイダー",
+        "components": "コンポーネント",
+        "gateway": "Gateway",
+        "running": "実行中",
+        "footer": "設定からスキルのカスタマイズやチャンネルの接続ができます"
+    },
+    "nav": {
+        "next": "次へ",
+        "back": "戻る",
+        "skipStep": "このステップをスキップ",
+        "skipSetup": "セットアップをスキップ",
+        "getStarted": "始める"
+    }
+}

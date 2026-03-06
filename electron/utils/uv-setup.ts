@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { getUvMirrorEnv } from './uv-env';
 
 /**
@@ -148,4 +148,39 @@ export async function setupManagedPython(): Promise<void> {
   } catch (err) {
     console.warn('Could not determine Python path:', err);
   }
+}
+
+/**
+ * Get the directory containing the UV-managed Python 3.12 binary.
+ * Returns null if Python is not installed.
+ */
+export async function getPythonBinDir(): Promise<string | null> {
+  const inPath = await new Promise<boolean>((resolve) => {
+    const cmd = process.platform === 'win32' ? 'where.exe' : 'which';
+    const child = spawn(cmd, ['uv']);
+    child.on('close', (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
+  });
+
+  const uvBin = inPath ? 'uv' : getBundledUvPath();
+
+  return new Promise<string | null>((resolve) => {
+    try {
+      const child = spawn(uvBin, ['python', 'find', '3.12'], {
+        shell: process.platform === 'win32',
+      });
+      let output = '';
+      child.stdout?.on('data', (data: Buffer) => { output += data; });
+      child.on('close', (code) => {
+        if (code === 0 && output.trim()) {
+          resolve(dirname(output.trim()));
+        } else {
+          resolve(null);
+        }
+      });
+      child.on('error', () => resolve(null));
+    } catch {
+      resolve(null);
+    }
+  });
 }

@@ -18,6 +18,7 @@ import { getSetting } from '../utils/store';
 import { setAutoStart } from '../utils/autostart';
 
 import { ClawHubService } from '../gateway/clawhub';
+import { ensureManagedBinInProcessPath } from '../utils/nodejs-setup';
 
 // Disable GPU acceleration for better compatibility
 app.disableHardwareAcceleration();
@@ -185,6 +186,11 @@ async function initialize(): Promise<void> {
   logger.debug(
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}`
   );
+
+  // Prepend managed Node.js bin dir to process.env.PATH so all main-process code
+  // (OAuth flows, CLI tool lookups, etc.) can find managed tools like gemini, claude, codex.
+  // Also called again after Node.js/CLI tool installation for first-run scenarios.
+  ensureManagedBinInProcessPath();
 
   // Warm up network optimization (non-blocking)
   void warmupNetworkOptimization();

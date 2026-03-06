@@ -17,7 +17,7 @@
     },
     "description": "CrawBot - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
-    "author": "Neurons AI Team",
+    "author": "Neurons AI",
     "license": "MIT",
     "private": true,
     "scripts": {

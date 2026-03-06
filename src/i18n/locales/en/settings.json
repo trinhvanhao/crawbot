@@ -79,6 +79,7 @@
             "setupTokenCommand": "claude setup-token",
             "setupTokenPlaceholder": "Paste your setup token here...",
             "pasteVerify": "Paste & Verify",
+            "signInWithClaude": "Sign in with Claude",
             "signInWithGoogle": "Sign in with Google",
             "signInWithChatGPT": "Sign in with ChatGPT",
             "chatGPTSignIn": "ChatGPT Sign-In",

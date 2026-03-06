@@ -62,7 +62,7 @@ import { providerIcons } from '@/assets/providers';
 
 /** All supported provider types with UI metadata */
 export const PROVIDER_TYPE_INFO: ProviderTypeInfo[] = [
-  { id: 'anthropic', name: 'Anthropic', icon: '🤖', placeholder: 'sk-ant-api03-...', model: 'Claude', requiresApiKey: true, supportsOAuth: true, oauthType: 'setup-token', defaultModelId: 'claude-opus-4-6' },
+  { id: 'anthropic', name: 'Anthropic', icon: '🤖', placeholder: 'sk-ant-api03-...', model: 'Claude', requiresApiKey: true, supportsOAuth: true, oauthType: 'oauth2', defaultModelId: 'claude-opus-4-6' },
   { id: 'openai', name: 'OpenAI', icon: '💚', placeholder: 'sk-proj-...', model: 'GPT', requiresApiKey: true, defaultModelId: 'gpt-5.2' },
   { id: 'openai-codex', name: 'OpenAI Codex', icon: '💚', placeholder: '', model: 'Codex', requiresApiKey: false, supportsOAuth: true, oauthType: 'oauth2', defaultModelId: 'gpt-5.3-codex' },
   { id: 'google', name: 'Google', icon: '🔷', placeholder: 'AIza...', model: 'Gemini', requiresApiKey: true, supportsOAuth: true, oauthType: 'oauth2', defaultModelId: 'gemini-3-pro-preview' },

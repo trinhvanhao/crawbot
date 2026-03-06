@@ -23,6 +23,7 @@ import { GatewayEventType, JsonRpcNotification, isNotification, isResponse } fro
 import { logger } from '../utils/logger';
 import { getUvMirrorEnv } from '../utils/uv-env';
 import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
+import { getManagedBinDirPath } from '../utils/nodejs-setup';
 import { prepareEnvPolyfillForChild } from './env-polyfill-helper';
 import {
   loadOrCreateDeviceIdentity,
@@ -589,14 +590,22 @@ export class GatewayManager extends EventEmitter {
     const arch = process.arch;
     const target = `${platform}-${arch}`;
 
-    const binPath = app.isPackaged
+    const uvBinPath = app.isPackaged
       ? path.join(process.resourcesPath, 'bin')
       : path.join(process.cwd(), 'resources', 'bin', target);
 
-    const binPathExists = existsSync(binPath);
-    const finalPath = binPathExists
-      ? `${binPath}${path.delimiter}${process.env.PATH || ''}`
-      : process.env.PATH || '';
+    const uvBinPathExists = existsSync(uvBinPath);
+
+    // Include managed Node.js bin dir (contains node, npm, python3, CLI tools)
+    const managedBinDir = getManagedBinDirPath();
+    const managedBinExists = existsSync(managedBinDir);
+
+    // Build PATH: managedBin > uvBin > system PATH
+    const pathParts: string[] = [];
+    if (managedBinExists) pathParts.push(managedBinDir);
+    if (uvBinPathExists) pathParts.push(uvBinPath);
+    pathParts.push(process.env.PATH || '');
+    const finalPath = pathParts.join(path.delimiter);
     
     // Load provider API keys from storage to pass as environment variables
     const providerEnv: Record<string, string> = {};
@@ -639,7 +648,7 @@ export class GatewayManager extends EventEmitter {
 
     const uvEnv = await getUvMirrorEnv();
     logger.info(
-      `Starting Gateway process (mode=${mode}, port=${this.status.port}, command="${command}", args="${this.sanitizeSpawnArgs(args).join(' ')}", cwd="${openclawDir}", bundledBin=${binPathExists ? 'yes' : 'no'}, providerKeys=${loadedProviderKeyCount})`
+      `Starting Gateway process (mode=${mode}, port=${this.status.port}, command="${command}", args="${this.sanitizeSpawnArgs(args).join(' ')}", cwd="${openclawDir}", uvBin=${uvBinPathExists ? 'yes' : 'no'}, managedBin=${managedBinExists ? 'yes' : 'no'}, providerKeys=${loadedProviderKeyCount})`
     );
     this.lastSpawnSummary = `mode=${mode}, command="${command}", args="${this.sanitizeSpawnArgs(args).join(' ')}", cwd="${openclawDir}"`;
     

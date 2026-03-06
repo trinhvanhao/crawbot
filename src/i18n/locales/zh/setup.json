@@ -1,0 +1,158 @@
+{
+    "steps": {
+        "welcome": {
+            "title": "欢迎使用 CrawBot",
+            "description": "您的 AI 助手已准备好进行配置"
+        },
+        "runtime": {
+            "title": "环境检查",
+            "description": "正在验证系统要求"
+        },
+        "provider": {
+            "title": "AI 提供商",
+            "description": "配置您的 AI 服务"
+        },
+        "channel": {
+            "title": "连接频道",
+            "description": "连接消息平台（可选）"
+        },
+        "installing": {
+            "title": "正在设置",
+            "description": "安装必要组件"
+        },
+        "complete": {
+            "title": "全部完成！",
+            "description": "CrawBot 已准备就绪"
+        }
+    },
+    "welcome": {
+        "title": "欢迎使用 CrawBot",
+        "description": "CrawBot 是 OpenClaw 的图形界面，让您轻松在喜爱的消息平台上使用 AI 助手。",
+        "features": {
+            "noCommand": "零命令行操作",
+            "modernUI": "现代美观的界面",
+            "bundles": "预装技能包",
+            "crossPlatform": "跨平台支持"
+        }
+    },
+    "runtime": {
+        "title": "检查环境",
+        "viewLogs": "查看日志",
+        "recheck": "重新检查",
+        "nodejs": "Node.js 运行时",
+        "python": "Python 3.12",
+        "buildtools": "构建工具",
+        "buildtoolsDesc": "C/C++ 编译器，用于原生模块（可选）",
+        "cliTools": "CLI 工具",
+        "cliToolsDesc": "AI 提供商的 OAuth 登录工具",
+        "openclaw": "OpenClaw 软件包",
+        "gateway": "Gateway 服务",
+        "startGateway": "启动 Gateway",
+        "status": {
+            "checking": "正在检查...",
+            "pending": "待处理",
+            "installing": "正在安装...",
+            "installingNode": "正在下载并安装 Node.js...",
+            "installingTools": "正在安装 CLI 工具...",
+            "success": "Node.js 已就绪",
+            "nodeFound": "Node.js {{version}}",
+            "nodeInstalled": "已安装 Node.js（{{version}}）",
+            "toolInstalled": "已安装",
+            "toolFailed": "安装失败",
+            "allToolsReady": "所有 CLI 工具已就绪",
+            "error": "失败",
+            "notFound": "未找到",
+            "gatewayRunning": "运行在端口 {{port}}",
+            "packageReady": "OpenClaw 软件包已就绪",
+            "pythonReady": "Python 3.12 已就绪",
+            "pythonNotFound": "未找到（将在下一步安装）",
+            "buildtoolsReady": "构建工具已就绪",
+            "installingBuildtools": "正在安装构建工具...",
+            "buildtoolsHint": "可选：仅原生代码包需要",
+            "pathPersisted": "已添加到系统 PATH"
+        },
+        "issue": {
+            "title": "检测到环境问题",
+            "desc": "请确保 OpenClaw 已正确安装。查看日志了解详情。",
+            "nodeInstallFailed": "无法自动安装 Node.js。请从 nodejs.org 手动安装。"
+        },
+        "logs": {
+            "title": "应用日志",
+            "openFolder": "打开日志文件夹",
+            "close": "关闭",
+            "noLogs": "（暂无日志）"
+        }
+    },
+    "provider": {
+        "label": "模型提供商",
+        "selectPlaceholder": "选择提供商...",
+        "baseUrl": "基础 URL",
+        "modelId": "模型 ID",
+        "modelIdDesc": "来自提供商的模型标识符（例如 deepseek-ai/DeepSeek-V3）",
+        "defaultModel": "默认模型",
+        "apiKey": "API 密钥",
+        "save": "保存",
+        "validateSave": "验证并保存",
+        "valid": "提供商配置成功",
+        "invalid": "API 密钥无效",
+        "storedLocally": "您的 API 密钥存储在本地计算机上。",
+        "authMethod": "认证方式",
+        "authApiKey": "API 密钥",
+        "authSetupToken": "设置令牌",
+        "authGoogleSignIn": "Google 登录",
+        "setupTokenInstallHint": "首先，如果您还没有安装 Claude Code，请先安装：",
+        "setupTokenInstallCommand": "npm install -g @anthropic-ai/claude-code",
+        "setupTokenInstructions": "然后运行以下命令获取设置令牌：",
+        "setupTokenCommand": "claude setup-token",
+        "setupTokenPlaceholder": "在此粘贴您的设置令牌...",
+        "pasteTokenSave": "粘贴令牌并保存",
+        "signInWithClaude": "使用 Claude 登录",
+        "signInWithGoogle": "使用 Google 登录",
+        "signInWithChatGPT": "使用 ChatGPT 登录",
+        "chatGPTSignIn": "ChatGPT 登录",
+        "waitingAuth": "等待浏览器授权...",
+        "oauthConfigured": "OAuth 配置成功"
+    },
+    "channel": {
+        "title": "连接消息频道",
+        "subtitle": "选择一个平台来连接您的 AI 助手。您可以稍后在设置中添加更多频道。",
+        "configure": "配置 {{name}}",
+        "howTo": "如何连接：",
+        "viewDocs": "查看文档",
+        "validationError": "验证失败",
+        "connected": "{{name}} 已连接",
+        "connectedDesc": "您的频道已配置。Gateway 启动时将自动连接。",
+        "configureAnother": "配置其他频道"
+    },
+    "installing": {
+        "title": "正在安装必要组件",
+        "subtitle": "设置驱动 AI 助手所需的工具",
+        "progress": "进度",
+        "status": {
+            "pending": "待处理",
+            "installing": "正在安装...",
+            "installed": "已安装",
+            "failed": "失败"
+        },
+        "error": "设置错误：",
+        "restart": "尝试重启应用",
+        "wait": "这可能需要几分钟...",
+        "skip": "跳过此步骤"
+    },
+    "complete": {
+        "title": "设置完成！",
+        "subtitle": "CrawBot 已配置完毕，随时可用。您现在可以开始与 AI 助手对话。",
+        "provider": "AI 提供商",
+        "components": "组件",
+        "gateway": "Gateway",
+        "running": "运行中",
+        "footer": "您可以在设置中自定义技能和连接频道"
+    },
+    "nav": {
+        "next": "下一步",
+        "back": "返回",
+        "skipStep": "跳过此步骤",
+        "skipSetup": "跳过设置",
+        "getStarted": "开始使用"
+    }
+}

@@ -55,6 +55,21 @@ import {
   getChannelEnabledMap,
 } from '../utils/channel-config';
 import { checkUvInstalled, installUv, setupManagedPython } from '../utils/uv-setup';
+import {
+  getNodeStatus,
+  installManagedNode,
+  checkAllCliTools,
+  installAllCliTools,
+  installSingleCliTool,
+  getManagedBinDirPath,
+  isManagedBinInPath,
+  persistManagedBinToPath,
+  symlinkPythonToManagedBin,
+  type NodeStatus,
+  type CliToolStatus,
+} from '../utils/nodejs-setup';
+import { getPythonBinDir } from '../utils/uv-setup';
+import { checkBuildTools, installBuildTools, type BuildToolsStatus, type BuildToolsInstallResult } from '../utils/build-tools';
 import { updateSkillConfig, getSkillConfig, getAllSkillConfigs } from '../utils/skill-config';
 import {
   getAgentList,
@@ -111,6 +126,12 @@ export function registerIpcHandlers(
 
   // UV handlers
   registerUvHandlers();
+
+  // Node.js & CLI tools handlers
+  registerNodejsHandlers();
+
+  // PATH persistence, Python symlink, and build tools handlers
+  registerPathHandlers();
 
   // Log handlers (for UI to read gateway/app logs)
   registerLogHandlers();
@@ -854,6 +875,69 @@ function registerUvHandlers(): void {
       console.error('Failed to setup uv/python:', error);
       return { success: false, error: String(error) };
     }
+  });
+}
+
+/**
+ * Node.js & CLI tools IPC handlers
+ */
+function registerNodejsHandlers(): void {
+  // Check Node.js status (system or managed)
+  ipcMain.handle('nodejs:check', async (): Promise<NodeStatus> => {
+    return await getNodeStatus();
+  });
+
+  // Install Node.js (downloads official binary to managed location)
+  ipcMain.handle('nodejs:install', async () => {
+    return await installManagedNode();
+  });
+
+  // Check CLI tools status (claude, gemini, codex)
+  ipcMain.handle('nodejs:checkCliTools', async (): Promise<CliToolStatus[]> => {
+    return await checkAllCliTools();
+  });
+
+  // Install all CLI tools
+  ipcMain.handle('nodejs:installCliTools', async () => {
+    return await installAllCliTools();
+  });
+
+  // Install a single CLI tool by command name (for per-tool progress updates)
+  ipcMain.handle('nodejs:installSingleCliTool', async (_event, command: string) => {
+    return await installSingleCliTool(command);
+  });
+}
+
+/**
+ * PATH persistence, Python symlink, and build tools IPC handlers
+ */
+function registerPathHandlers(): void {
+  ipcMain.handle('path:isPersisted', async (): Promise<boolean> => {
+    return isManagedBinInPath();
+  });
+
+  ipcMain.handle('path:persist', async () => {
+    return await persistManagedBinToPath();
+  });
+
+  ipcMain.handle('path:symlinkPython', async () => {
+    return await symlinkPythonToManagedBin();
+  });
+
+  ipcMain.handle('path:getManagedBinDir', async (): Promise<string> => {
+    return getManagedBinDirPath();
+  });
+
+  ipcMain.handle('python:getBinDir', async (): Promise<string | null> => {
+    return await getPythonBinDir();
+  });
+
+  ipcMain.handle('buildtools:check', async (): Promise<BuildToolsStatus> => {
+    return await checkBuildTools();
+  });
+
+  ipcMain.handle('buildtools:install', async (): Promise<BuildToolsInstallResult> => {
+    return await installBuildTools();
   });
 }
 
@@ -1887,6 +1971,16 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
           return await runOpenAICodexOAuthFlow();
         } catch (error) {
           logger.error('OpenAI Codex OAuth login failed:', error);
+          return { success: false, error: error instanceof Error ? error.message : String(error) };
+        }
+      }
+
+      if (providerType === 'anthropic') {
+        try {
+          const { runClaudeOAuthFlow } = await import('../utils/claude-oauth');
+          return await runClaudeOAuthFlow();
+        } catch (error) {
+          logger.error('Claude OAuth login failed:', error);
           return { success: false, error: error instanceof Error ? error.message : String(error) };
         }
       }

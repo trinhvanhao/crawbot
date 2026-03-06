@@ -592,9 +592,7 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [authMethod, setAuthMethod] = useState<'apikey' | 'oauth'>('apikey');
-  const [setupToken, setSetupToken] = useState('');
-
-  const { triggerOAuthLogin, pasteSetupToken } = useProviderStore();
+  const { triggerOAuthLogin } = useProviderStore();
 
   const typeInfo = PROVIDER_TYPE_INFO.find((t) => t.id === selectedType);
 
@@ -614,31 +612,7 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
     setValidationError(null);
 
     try {
-      // OAuth flow: setup-token
-      if (effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'setup-token') {
-        if (!setupToken.trim()) {
-          setValidationError(t('aiProviders.toast.invalidKey'));
-          setSaving(false);
-          return;
-        }
-        const result = await pasteSetupToken(selectedType, setupToken.trim());
-        if (!result.success) {
-          setValidationError(result.error || t('aiProviders.toast.tokenFailed'));
-          setSaving(false);
-          return;
-        }
-        toast.success(t('aiProviders.toast.tokenPasted'));
-        // Save provider config without API key
-        await onAdd(
-          selectedType,
-          name || typeInfo?.name || selectedType,
-          '',
-          { authMethod: 'oauth' }
-        );
-        return;
-      }
-
-      // OAuth flow: oauth2 (Google, OpenAI Codex)
+      // OAuth flow: oauth2 (Anthropic, Google, OpenAI Codex)
       if (effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'oauth2') {
         const result = await triggerOAuthLogin(selectedType);
         if (!result.success) {
@@ -747,7 +721,6 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
                       setBaseUrl('');
                       setModelId('');
                       setAuthMethod('apikey');
-                      setSetupToken('');
                     }}
                     className="text-sm text-muted-foreground hover:text-foreground"
                   >
@@ -795,59 +768,17 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
                       )}
                     >
                       <LogIn className="h-4 w-4" />
-                      {typeInfo?.oauthType === 'setup-token'
-                        ? t('aiProviders.oauth.setupToken')
-                        : t('aiProviders.oauth.googleSignIn')}
+                      {selectedType === 'anthropic'
+                        ? t('aiProviders.oauth.signInWithClaude')
+                        : selectedType === 'openai-codex'
+                          ? t('aiProviders.oauth.signInWithChatGPT')
+                          : t('aiProviders.oauth.signInWithGoogle')}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* OAuth: Setup Token flow (Anthropic) */}
-              {effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'setup-token' && (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                    <p className="text-muted-foreground mb-2">
-                      {t('aiProviders.oauth.setupTokenInstallHint')}
-                    </p>
-                    <code className="block bg-black/20 dark:bg-white/10 rounded px-3 py-2 font-mono text-xs">
-                      {t('aiProviders.oauth.setupTokenInstallCommand')}
-                    </code>
-                    <p className="text-muted-foreground mt-3 mb-2">
-                      {t('aiProviders.oauth.setupTokenInstructions')}
-                    </p>
-                    <code className="block bg-black/20 dark:bg-white/10 rounded px-3 py-2 font-mono text-xs">
-                      {t('aiProviders.oauth.setupTokenCommand')}
-                    </code>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        type={showKey ? 'text' : 'password'}
-                        placeholder={t('aiProviders.oauth.setupTokenPlaceholder')}
-                        value={setupToken}
-                        onChange={(e) => {
-                          setSetupToken(e.target.value);
-                          setValidationError(null);
-                        }}
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(!showKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  {validationError && (
-                    <p className="text-xs text-destructive">{validationError}</p>
-                  )}
-                </div>
-              )}
-
-              {/* OAuth: OAuth2 PKCE flow (Google, OpenAI Codex) */}
+              {/* OAuth: OAuth2 flow (Anthropic, Google, OpenAI Codex) */}
               {effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'oauth2' && (
                 <div className="space-y-3">
                   {saving ? (
@@ -864,9 +795,11 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
                       onClick={handleAdd}
                     >
                       <LogIn className="h-4 w-4 mr-2" />
-                      {selectedType === 'openai-codex'
-                        ? t('aiProviders.oauth.signInWithChatGPT')
-                        : t('aiProviders.oauth.signInWithGoogle')}
+                      {selectedType === 'anthropic'
+                        ? t('aiProviders.oauth.signInWithClaude')
+                        : selectedType === 'openai-codex'
+                          ? t('aiProviders.oauth.signInWithChatGPT')
+                          : t('aiProviders.oauth.signInWithGoogle')}
                     </Button>
                   )}
                   {validationError && (
@@ -954,15 +887,12 @@ function AddProviderDialog({ existingTypes, onClose, onAdd, onValidateKey }: Add
                   !selectedType
                   || saving
                   || (effectiveAuthMethod === 'apikey' && typeInfo?.showModelId && !typeInfo?.defaultModelId && modelId.trim().length === 0)
-                  || (effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'setup-token' && !setupToken.trim())
                 }
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                {effectiveAuthMethod === 'oauth' && typeInfo?.oauthType === 'setup-token'
-                  ? t('aiProviders.oauth.pasteVerify')
-                  : t('aiProviders.dialog.add')}
+                {t('aiProviders.dialog.add')}
               </Button>
             )}
           </div>

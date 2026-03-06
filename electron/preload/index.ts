@@ -118,6 +118,20 @@ const electronAPI = {
         // UV
         'uv:check',
         'uv:install-all',
+        // Node.js & CLI tools
+        'nodejs:check',
+        'nodejs:install',
+        'nodejs:checkCliTools',
+        'nodejs:installCliTools',
+        'nodejs:installSingleCliTool',
+        // PATH persistence, Python, Build tools
+        'path:isPersisted',
+        'path:persist',
+        'path:symlinkPython',
+        'path:getManagedBinDir',
+        'python:getBinDir',
+        'buildtools:check',
+        'buildtools:install',
         // Skill config (direct file access)
         'skill:updateConfig',
         'skill:getConfig',

@@ -79,6 +79,7 @@
             "setupTokenCommand": "claude setup-token",
             "setupTokenPlaceholder": "Dán token thiết lập của bạn vào đây...",
             "pasteVerify": "Dán & Xác minh",
+            "signInWithClaude": "Đăng nhập bằng Claude",
             "signInWithGoogle": "Đăng nhập bằng Google",
             "signInWithChatGPT": "Đăng nhập bằng ChatGPT",
             "chatGPTSignIn": "Đăng nhập ChatGPT",
