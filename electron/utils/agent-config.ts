@@ -326,6 +326,22 @@ export function getOpenclawDirPath(): string {
 // ── Tools exec config helpers ──────────────────────────────────
 
 /**
+ * Read tools.exec auto-approve state from openclaw.json.
+ * Returns true if security="full" && ask="off",
+ * false if security="allowlist" && ask="on-miss",
+ * or undefined if not configured or has invalid/unrecognised values.
+ */
+export function getToolsAutoApproveFromConfig(): boolean | undefined {
+  const config = readConfig();
+  const tools = config.tools as Record<string, unknown> | undefined;
+  if (!tools?.exec) return undefined;
+  const exec = tools.exec as Record<string, unknown>;
+  if (exec.security === 'full' && exec.ask === 'off') return true;
+  if (exec.security === 'allowlist' && exec.ask === 'on-miss') return false;
+  return undefined; // invalid or unrecognised combination
+}
+
+/**
  * Set tools.exec auto-approve config in openclaw.json.
  * When enabled: sets security="full", ask="off" (agent runs tools freely).
  * When disabled: sets security="allowlist", ask="on-miss" (safe defaults).
@@ -346,6 +362,41 @@ export function setToolsAutoApprove(enabled: boolean): void {
 
   writeConfig(config);
   logger.info('Tools auto-approve updated', { enabled });
+}
+
+// ── Session dmScope config helper ──────────────────────────────────
+
+type DmScope = 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer';
+const VALID_DM_SCOPES: DmScope[] = ['main', 'per-peer', 'per-channel-peer', 'per-account-channel-peer'];
+
+/**
+ * Read session.dmScope from openclaw.json.
+ * Returns the scope value if set, or undefined if not configured.
+ */
+export function getSessionDmScopeFromConfig(): DmScope | undefined {
+  const config = readConfig();
+  const session = config.session as Record<string, unknown> | undefined;
+  const scope = session?.dmScope as string | undefined;
+  if (!scope) return undefined;
+  if (VALID_DM_SCOPES.includes(scope as DmScope)) {
+    return scope as DmScope;
+  }
+  return undefined;
+}
+
+/**
+ * Set session.dmScope in openclaw.json.
+ * Only touches session.dmScope — preserves all other fields inside session.
+ */
+export function setSessionDmScope(scope: DmScope): void {
+  const config = readConfig();
+
+  if (!config.session) config.session = {};
+  const session = config.session as Record<string, unknown>;
+  session.dmScope = scope;
+
+  writeConfig(config);
+  logger.info('Session dmScope updated', { scope });
 }
 
 // ── Generic file-browser helpers ──────────────────────────────────

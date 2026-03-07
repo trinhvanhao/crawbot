@@ -103,7 +103,21 @@
         "title": "OpenClaw",
         "description": "OpenClaw agent settings",
         "toolsAutoApprove": "Use tools without approval",
-        "toolsAutoApproveDesc": "Allow AI agents to execute tools and commands without asking for permission"
+        "toolsAutoApproveDesc": "Allow AI agents to execute tools and commands without asking for permission",
+        "dmScope": "DM Session Scope",
+        "dmScopeDesc": "How direct message sessions are isolated between senders and channels",
+        "dmScopeOptions": {
+            "main": "Main (shared)",
+            "perPeer": "Per sender",
+            "perChannelPeer": "Per channel + sender",
+            "perAccountChannelPeer": "Per account + channel + sender"
+        },
+        "dmScopeHints": {
+            "main": "All DMs share a single session. Context flows across all senders and channels.",
+            "per-peer": "Each sender gets their own session, shared across all channels.",
+            "per-channel-peer": "Each sender gets a separate session per channel. Good for multi-channel setups.",
+            "per-account-channel-peer": "Most granular: isolates by account, channel, and sender. Best for multi-account bots."
+        }
     },
     "updates": {
         "title": "Updates",

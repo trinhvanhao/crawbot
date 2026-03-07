@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -59,6 +60,9 @@ export function Settings() {
     setStartMinimized,
     toolsAutoApprove,
     setToolsAutoApprove,
+    sessionDmScope,
+    setSessionDmScope,
+    syncFromMain,
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
@@ -148,6 +152,11 @@ export function Settings() {
       toast.error(`Failed to copy token: ${String(error)}`);
     }
   };
+
+  // Sync OpenClaw settings from main process (openclaw.json is source of truth)
+  useEffect(() => {
+    syncFromMain();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showCliTools) return;
@@ -479,6 +488,32 @@ export function Settings() {
               checked={toolsAutoApprove}
               onCheckedChange={setToolsAutoApprove}
             />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 mr-4">
+                <Label>{t('openclaw.dmScope')}</Label>
+                <p className="text-sm text-muted-foreground">
+                  {t('openclaw.dmScopeDesc')}
+                </p>
+              </div>
+              <Select
+                className="w-[220px]"
+                value={sessionDmScope}
+                onChange={(e) => setSessionDmScope(e.target.value as 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer')}
+              >
+                <option value="main">{t('openclaw.dmScopeOptions.main')}</option>
+                <option value="per-peer">{t('openclaw.dmScopeOptions.perPeer')}</option>
+                <option value="per-channel-peer">{t('openclaw.dmScopeOptions.perChannelPeer')}</option>
+                <option value="per-account-channel-peer">{t('openclaw.dmScopeOptions.perAccountChannelPeer')}</option>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground/70">
+              {t(`openclaw.dmScopeHints.${sessionDmScope}`)}
+            </p>
           </div>
         </CardContent>
       </Card>

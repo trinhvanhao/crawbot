@@ -44,6 +44,8 @@ const electronAPI = {
         'app:setAutoStart',
         'app:setStartMinimized',
         'app:setToolsAutoApprove',
+        'app:setSessionDmScope',
+        'app:getOpenclawSettings',
         // Window controls
         'window:minimize',
         'window:maximize',

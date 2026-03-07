@@ -43,6 +43,7 @@ export interface AppSettings {
 
   // Agent behavior
   toolsAutoApprove: boolean;
+  sessionDmScope: string;
 
   // Presets
   selectedBundles: string[];
@@ -80,6 +81,7 @@ const defaults: AppSettings = {
 
   // Agent behavior
   toolsAutoApprove: true,
+  sessionDmScope: 'main',
 
   // Presets
   selectedBundles: ['productivity', 'developer'],

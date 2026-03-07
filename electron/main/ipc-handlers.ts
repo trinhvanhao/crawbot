@@ -89,6 +89,9 @@ import {
   readAnyFile,
   writeAnyFile,
   setToolsAutoApprove as setToolsAutoApproveConfig,
+  getToolsAutoApproveFromConfig,
+  setSessionDmScope as setSessionDmScopeConfig,
+  getSessionDmScopeFromConfig,
 } from '../utils/agent-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
@@ -2404,6 +2407,35 @@ function registerAppHandlers(gatewayManager: GatewayManager): void {
         logger.warn('Gateway restart after tools auto-approve change failed:', err);
       });
     }
+  });
+
+  // Set session dmScope — persist to electron-store + openclaw.json + restart gateway
+  ipcMain.handle('app:setSessionDmScope', async (_, scope: string) => {
+    await setSetting('sessionDmScope', scope);
+    setSessionDmScopeConfig(scope as 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer');
+    if (gatewayManager.isConnected()) {
+      void gatewayManager.restart().catch((err) => {
+        logger.warn('Gateway restart after session dmScope change failed:', err);
+      });
+    }
+  });
+
+  // Read OpenClaw settings directly from openclaw.json (source of truth).
+  // If a UI-configurable value is invalid/unrecognised, overwrite it with the default.
+  ipcMain.handle('app:getOpenclawSettings', () => {
+    let toolsAutoApprove = getToolsAutoApproveFromConfig();
+    if (toolsAutoApprove === undefined) {
+      toolsAutoApprove = true;
+      setToolsAutoApproveConfig(toolsAutoApprove);
+    }
+
+    let sessionDmScope = getSessionDmScopeFromConfig();
+    if (sessionDmScope === undefined) {
+      sessionDmScope = 'main';
+      setSessionDmScopeConfig(sessionDmScope);
+    }
+
+    return { toolsAutoApprove, sessionDmScope };
   });
 }
 

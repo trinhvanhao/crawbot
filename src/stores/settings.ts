@@ -8,6 +8,7 @@ import i18n from '@/i18n';
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
+type DmScope = 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer';
 
 interface SettingsState {
   // General
@@ -31,6 +32,7 @@ interface SettingsState {
 
   // Agent behavior
   toolsAutoApprove: boolean;
+  sessionDmScope: DmScope;
 
   // Setup
   setupComplete: boolean;
@@ -48,6 +50,8 @@ interface SettingsState {
   setSidebarCollapsed: (value: boolean) => void;
   setDevModeUnlocked: (value: boolean) => void;
   setToolsAutoApprove: (value: boolean) => void;
+  setSessionDmScope: (value: DmScope) => void;
+  syncFromMain: () => Promise<void>;
   markSetupComplete: () => void;
   resetSettings: () => void;
 }
@@ -69,6 +73,7 @@ const defaultSettings = {
   sidebarCollapsed: false,
   devModeUnlocked: false,
   toolsAutoApprove: true,
+  sessionDmScope: 'main' as DmScope,
   setupComplete: false,
 };
 
@@ -98,6 +103,21 @@ export const useSettingsStore = create<SettingsState>()(
         window.electron.ipcRenderer.invoke('app:setToolsAutoApprove', toolsAutoApprove);
         set({ toolsAutoApprove });
       },
+      setSessionDmScope: (sessionDmScope) => {
+        window.electron.ipcRenderer.invoke('app:setSessionDmScope', sessionDmScope);
+        set({ sessionDmScope });
+      },
+      syncFromMain: async () => {
+        try {
+          const result = await window.electron.ipcRenderer.invoke('app:getOpenclawSettings') as {
+            toolsAutoApprove: boolean;
+            sessionDmScope: DmScope;
+          };
+          set({ toolsAutoApprove: result.toolsAutoApprove, sessionDmScope: result.sessionDmScope });
+        } catch {
+          // IPC may not be ready yet on very early calls — ignore
+        }
+      },
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),
     }),
@@ -106,3 +126,7 @@ export const useSettingsStore = create<SettingsState>()(
     }
   )
 );
+
+// Sync OpenClaw settings from openclaw.json on app load (not just when Settings page mounts).
+// This ensures Zustand/localStorage reflects any manual edits to openclaw.json.
+useSettingsStore.getState().syncFromMain();

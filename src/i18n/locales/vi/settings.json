@@ -103,7 +103,21 @@
         "title": "OpenClaw",
         "description": "Cài đặt OpenClaw agent",
         "toolsAutoApprove": "Sử dụng công cụ không cần phê duyệt",
-        "toolsAutoApproveDesc": "Cho phép AI agent thực thi công cụ và lệnh mà không cần xin phép"
+        "toolsAutoApproveDesc": "Cho phép AI agent thực thi công cụ và lệnh mà không cần xin phép",
+        "dmScope": "Phạm vi phiên DM",
+        "dmScopeDesc": "Cách phiên tin nhắn trực tiếp được cách ly giữa người gửi và kênh",
+        "dmScopeOptions": {
+            "main": "Chung (chia sẻ)",
+            "perPeer": "Theo người gửi",
+            "perChannelPeer": "Theo kênh + người gửi",
+            "perAccountChannelPeer": "Theo tài khoản + kênh + người gửi"
+        },
+        "dmScopeHints": {
+            "main": "Tất cả DM dùng chung một phiên. Ngữ cảnh được chia sẻ giữa mọi người gửi và kênh.",
+            "per-peer": "Mỗi người gửi có phiên riêng, chia sẻ trên tất cả các kênh.",
+            "per-channel-peer": "Mỗi người gửi có phiên riêng cho từng kênh. Phù hợp cho cài đặt đa kênh.",
+            "per-account-channel-peer": "Chi tiết nhất: cách ly theo tài khoản, kênh và người gửi. Tốt nhất cho bot đa tài khoản."
+        }
     },
     "updates": {
         "title": "Cập nhật",

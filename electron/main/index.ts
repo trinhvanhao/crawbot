@@ -14,9 +14,12 @@ import { createMenu } from './menu';
 import { appUpdater, registerUpdateHandlers } from './updater';
 import { logger } from '../utils/logger';
 import { warmupNetworkOptimization } from '../utils/uv-env';
-import { getSetting } from '../utils/store';
+import { getSetting, setSetting } from '../utils/store';
 import { setAutoStart } from '../utils/autostart';
-import { setToolsAutoApprove } from '../utils/agent-config';
+import {
+  setToolsAutoApprove, getToolsAutoApproveFromConfig,
+  setSessionDmScope, getSessionDmScopeFromConfig,
+} from '../utils/agent-config';
 
 import { ClawHubService } from '../gateway/clawhub';
 import { ensureManagedBinInProcessPath } from '../utils/nodejs-setup';
@@ -200,11 +203,25 @@ async function initialize(): Promise<void> {
   const launchAtStartup = await getSetting('launchAtStartup');
   setAutoStart(launchAtStartup);
 
-  // Ensure tools.exec config in openclaw.json on every launch (default: auto-approve enabled).
-  // This overrides OpenClaw's default (security:"deny", ask:"always") so agents can run tools freely.
-  // Critical on first install when openclaw.json may not exist yet.
-  const toolsAutoApprove = await getSetting('toolsAutoApprove');
-  setToolsAutoApprove(toolsAutoApprove);
+  // Sync tools.exec: openclaw.json is source of truth.
+  // If configured in openclaw.json → sync back to electron-store.
+  // If not yet configured (first install) → write defaults from electron-store.
+  const configToolsAutoApprove = getToolsAutoApproveFromConfig();
+  if (configToolsAutoApprove !== undefined) {
+    await setSetting('toolsAutoApprove', configToolsAutoApprove);
+  } else {
+    const toolsAutoApprove = await getSetting('toolsAutoApprove');
+    setToolsAutoApprove(toolsAutoApprove);
+  }
+
+  // Sync session.dmScope: openclaw.json is source of truth.
+  const configSessionDmScope = getSessionDmScopeFromConfig();
+  if (configSessionDmScope !== undefined) {
+    await setSetting('sessionDmScope', configSessionDmScope);
+  } else {
+    const sessionDmScope = await getSetting('sessionDmScope');
+    setSessionDmScope(sessionDmScope as 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer');
+  }
 
   // Determine if window should start hidden
   const startMinimized =

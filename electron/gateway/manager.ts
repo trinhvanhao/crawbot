@@ -16,8 +16,11 @@ import {
   isOpenClawBuilt, 
   isOpenClawPresent 
 } from '../utils/paths';
-import { getSetting } from '../utils/store';
-import { setToolsAutoApprove } from '../utils/agent-config';
+import { getSetting, setSetting } from '../utils/store';
+import {
+  setToolsAutoApprove, getToolsAutoApproveFromConfig,
+  setSessionDmScope, getSessionDmScopeFromConfig,
+} from '../utils/agent-config';
 import { getApiKey, getDefaultProvider, getProvider } from '../utils/secure-storage';
 import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-registry';
 import { GatewayEventType, JsonRpcNotification, isNotification, isResponse } from './protocol';
@@ -549,9 +552,23 @@ export class GatewayManager extends EventEmitter {
       throw new Error(errMsg);
     }
     
-    // Ensure tools.exec config in openclaw.json matches the user's setting
-    const toolsAutoApprove = await getSetting('toolsAutoApprove');
-    setToolsAutoApprove(toolsAutoApprove);
+    // Sync tools.exec: openclaw.json is source of truth.
+    const configToolsAutoApprove = getToolsAutoApproveFromConfig();
+    if (configToolsAutoApprove !== undefined) {
+      await setSetting('toolsAutoApprove', configToolsAutoApprove);
+    } else {
+      const toolsAutoApprove = await getSetting('toolsAutoApprove');
+      setToolsAutoApprove(toolsAutoApprove);
+    }
+
+    // Sync session.dmScope: openclaw.json is source of truth.
+    const configSessionDmScope = getSessionDmScopeFromConfig();
+    if (configSessionDmScope !== undefined) {
+      await setSetting('sessionDmScope', configSessionDmScope);
+    } else {
+      const sessionDmScope = await getSetting('sessionDmScope');
+      setSessionDmScope(sessionDmScope as 'main' | 'per-peer' | 'per-channel-peer' | 'per-account-channel-peer');
+    }
 
     // Get or generate gateway token
     const gatewayToken = await getSetting('gatewayToken');
