@@ -134,7 +134,7 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
         type: 'text',
         placeholder: 'channels:meta.telegram.fields.allowedUsers.placeholder',
         description: 'channels:meta.telegram.fields.allowedUsers.description',
-        required: true,
+        required: false,
       },
     ],
     instructions: [

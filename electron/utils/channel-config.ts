@@ -181,20 +181,28 @@ export function saveChannelConfig(
         }
     }
 
-    // Special handling for Telegram: convert allowedUsers string to allowlist array
+    // Special handling for Telegram: convert allowedUsers string to dmPolicy + allowFrom
     if (channelType === 'telegram') {
         const { allowedUsers, ...restConfig } = config;
         transformedConfig = { ...restConfig };
 
-        if (allowedUsers && typeof allowedUsers === 'string') {
-            const users = allowedUsers.split(',')
+        const trimmed = typeof allowedUsers === 'string' ? allowedUsers.trim() : '';
+
+        if (trimmed === '') {
+            // Blank → pairing mode
+            transformedConfig.dmPolicy = 'pairing';
+            transformedConfig.allowFrom = [''];
+        } else if (trimmed === '*') {
+            // Wildcard → open mode
+            transformedConfig.dmPolicy = 'open';
+            transformedConfig.allowFrom = ['*'];
+        } else {
+            // Specific user IDs → allowlist mode
+            const users = trimmed.split(',')
                 .map(u => u.trim())
                 .filter(u => u.length > 0);
-
-            if (users.length > 0) {
-                transformedConfig.allowFrom = users; // Use 'allowFrom' (correct key)
-                // transformedConfig.groupPolicy = 'allowlist'; // Default is allowlist
-            }
+            transformedConfig.dmPolicy = 'allowlist';
+            transformedConfig.allowFrom = users;
         }
     }
 
@@ -296,14 +304,21 @@ export function getChannelFormValues(channelType: string): Record<string, string
             }
         }
     } else if (channelType === 'telegram') {
-        // Special handling for Telegram: convert allowFrom array to allowedUsers string
-        if (Array.isArray(saved.allowFrom)) {
-            values.allowedUsers = saved.allowFrom.join(', ');
+        // Reconstruct allowedUsers from dmPolicy + allowFrom
+        const dmPolicy = saved.dmPolicy as string | undefined;
+        const allowFrom = saved.allowFrom as string[] | undefined;
+
+        if (dmPolicy === 'open') {
+            values.allowedUsers = '*';
+        } else if (dmPolicy === 'pairing' || (Array.isArray(allowFrom) && allowFrom.length === 1 && allowFrom[0] === '')) {
+            values.allowedUsers = '';
+        } else if (Array.isArray(allowFrom)) {
+            values.allowedUsers = allowFrom.filter(u => u.length > 0).join(', ');
         }
 
         // Also extract other string values
         for (const [key, value] of Object.entries(saved)) {
-            if (typeof value === 'string' && key !== 'enabled') {
+            if (typeof value === 'string' && key !== 'enabled' && key !== 'dmPolicy') {
                 values[key] = value;
             }
         }
@@ -537,13 +552,24 @@ export function saveAccountConfig(
     if (channelType === 'telegram') {
         const { allowedUsers, ...restConfig } = config;
         transformedConfig = { ...restConfig };
-        if (allowedUsers && typeof allowedUsers === 'string') {
-            const users = (allowedUsers as string).split(',')
+
+        const trimmed = typeof allowedUsers === 'string' ? allowedUsers.trim() : '';
+
+        if (trimmed === '') {
+            // Blank → pairing mode
+            transformedConfig.dmPolicy = 'pairing';
+            transformedConfig.allowFrom = [''];
+        } else if (trimmed === '*') {
+            // Wildcard → open mode
+            transformedConfig.dmPolicy = 'open';
+            transformedConfig.allowFrom = ['*'];
+        } else {
+            // Specific user IDs → allowlist mode
+            const users = trimmed.split(',')
                 .map(u => u.trim())
                 .filter(u => u.length > 0);
-            if (users.length > 0) {
-                transformedConfig.allowFrom = users;
-            }
+            transformedConfig.dmPolicy = 'allowlist';
+            transformedConfig.allowFrom = users;
         }
     }
 
@@ -653,11 +679,20 @@ export function getAccountFormValues(
             }
         }
     } else if (channelType === 'telegram') {
-        if (Array.isArray(saved.allowFrom)) {
-            values.allowedUsers = (saved.allowFrom as string[]).join(', ');
+        // Reconstruct allowedUsers from dmPolicy + allowFrom
+        const dmPolicy = saved.dmPolicy as string | undefined;
+        const allowFrom = saved.allowFrom as string[] | undefined;
+
+        if (dmPolicy === 'open') {
+            values.allowedUsers = '*';
+        } else if (dmPolicy === 'pairing' || (Array.isArray(allowFrom) && allowFrom.length === 1 && allowFrom[0] === '')) {
+            values.allowedUsers = '';
+        } else if (Array.isArray(allowFrom)) {
+            values.allowedUsers = (allowFrom as string[]).filter(u => u.length > 0).join(', ');
         }
+
         for (const [key, value] of Object.entries(saved)) {
-            if (typeof value === 'string' && key !== 'enabled') values[key] = value;
+            if (typeof value === 'string' && key !== 'enabled' && key !== 'dmPolicy') values[key] = value;
         }
     } else {
         for (const [key, value] of Object.entries(saved)) {
@@ -926,14 +961,8 @@ async function validateTelegramCredentials(
 ): Promise<CredentialValidationResult> {
     const botToken = config.botToken?.trim();
 
-    const allowedUsers = config.allowedUsers?.trim();
-
     if (!botToken) {
         return { valid: false, errors: ['Bot token is required'], warnings: [] };
-    }
-
-    if (!allowedUsers) {
-        return { valid: false, errors: ['At least one allowed user ID is required'], warnings: [] };
     }
 
     try {

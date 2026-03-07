@@ -81,7 +81,7 @@
                 "allowedUsers": {
                     "label": "Allowed User IDs",
                     "placeholder": "e.g. 123456789, 987654321",
-                    "description": "Comma separated list of User IDs allowed to use the bot. Required for security."
+                    "description": "Controls who can DM your bot:\n• Enter comma-separated User IDs → allowlist mode (only listed users can chat)\n• Enter * → open mode (anyone can chat)\n• Leave blank → pairing mode (users must enter a pairing code to connect)"
                 }
             },
             "instructions": [

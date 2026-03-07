@@ -1032,7 +1032,7 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
         )}
       </div>
       {field.description && (
-        <p className="text-xs text-muted-foreground">{t(field.description)}</p>
+        <p className="text-xs text-muted-foreground whitespace-pre-line">{t(field.description)}</p>
       )}
       {field.envVar && (
         <p className="text-xs text-muted-foreground">{t('dialog.envVar', { var: field.envVar })}</p>
