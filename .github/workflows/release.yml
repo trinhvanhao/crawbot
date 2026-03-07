@@ -167,11 +167,11 @@ jobs:
           SUMMARY: ${{ github.event.inputs.summary }}
           REPO: ${{ github.repository }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          export TAG="${GITHUB_REF_NAME}"
           echo "Current tag: $TAG"
 
           # Find the previous tag
-          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1)
+          export PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1)
           echo "Previous tag: ${PREVIOUS_TAG:-"(none)"}"
 
           # Generate changelog
@@ -185,61 +185,65 @@ jobs:
           cat /tmp/changelog.txt
           echo ""
 
-          # Build release body file
-          BODY="/tmp/release-body.md"
+          # Build release body file using node to avoid shell escaping issues
+          node -e '
+            const fs = require("fs");
+            const tag = process.env.TAG;
+            const prevTag = process.env.PREVIOUS_TAG;
+            const repo = process.env.REPO;
+            const summary = process.env.SUMMARY;
+            const changelog = fs.readFileSync("/tmp/changelog.txt", "utf8").trim();
 
-          echo "## CrawBot ${TAG}" > "$BODY"
-          echo "" >> "$BODY"
-          echo "CrawBot - Graphical AI Assistant based on OpenClaw" >> "$BODY"
-          echo "" >> "$BODY"
+            let body = `## 🚀 CrawBot ${tag}\n\nCrawBot - Graphical AI Assistant based on OpenClaw\n\n`;
 
-          # Add custom summary if provided
-          if [ -n "$SUMMARY" ]; then
-            echo "### Summary" >> "$BODY"
-            echo "" >> "$BODY"
-            echo "$SUMMARY" >> "$BODY"
-            echo "" >> "$BODY"
-          fi
+            if (summary) {
+              body += `### 📋 Summary\n\n${summary}\n\n`;
+            }
 
-          # Add changelog
-          echo "### Changes since last release" >> "$BODY"
-          echo "" >> "$BODY"
-          cat /tmp/changelog.txt >> "$BODY"
-          echo "" >> "$BODY"
-          echo "" >> "$BODY"
+            body += `### 🔄 Changes since last release\n\n${changelog}\n\n`;
 
-          # Add downloads section (use single quotes to avoid backtick issues)
-          echo '### Downloads' >> "$BODY"
-          echo '' >> "$BODY"
-          echo 'Please select the appropriate installer for your operating system and architecture:' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '#### macOS' >> "$BODY"
-          echo '- **Apple Silicon (M1/M2/M3/M4)**: `CrawBot-*-mac-arm64.dmg`' >> "$BODY"
-          echo '- **Intel (x64)**: `CrawBot-*-mac-x64.dmg`' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '#### Windows' >> "$BODY"
-          echo '- **Installer (x64)**: `CrawBot-*-win-x64.exe`' >> "$BODY"
-          echo '- **Installer (ARM64)**: `CrawBot-*-win-arm64.exe`' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '#### Linux' >> "$BODY"
-          echo '- **AppImage (x64)**: `CrawBot-*-linux-x86_64.AppImage` (Universal format, recommended)' >> "$BODY"
-          echo '- **AppImage (ARM64)**: `CrawBot-*-linux-arm64.AppImage`' >> "$BODY"
-          echo '- **Debian/Ubuntu (x64)**: `CrawBot-*-linux-amd64.deb`' >> "$BODY"
-          echo '- **Debian/Ubuntu (ARM64)**: `CrawBot-*-linux-arm64.deb`' >> "$BODY"
-          echo '- **RPM (x64)**: `CrawBot-*-linux-x86_64.rpm`' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '### Installation Notes' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '- **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences > Security & Privacy to allow the app to run' >> "$BODY"
-          echo '- **Windows**: SmartScreen may block the app. Click "More info" > "Run anyway" to proceed' >> "$BODY"
-          echo '- **Linux**: AppImage requires executable permission: `chmod +x CrawBot-*.AppImage`' >> "$BODY"
-          echo '' >> "$BODY"
-          echo '---' >> "$BODY"
-          echo '' >> "$BODY"
-          echo "Found an issue? Please submit an [Issue](https://github.com/${REPO}/issues)" >> "$BODY"
+            body += `### 📦 Downloads
+
+          Please select the appropriate installer for your operating system and architecture:
+
+          #### macOS
+          - **Apple Silicon (M1/M2/M3/M4)**: \`CrawBot-*-mac-arm64.dmg\`
+          - **Intel (x64)**: \`CrawBot-*-mac-x64.dmg\`
+
+          #### Windows
+          - **Installer (x64)**: \`CrawBot-*-win-x64.exe\`
+          - **Installer (ARM64)**: \`CrawBot-*-win-arm64.exe\`
+
+          #### Linux
+          - **AppImage (x64)**: \`CrawBot-*-linux-x86_64.AppImage\` (Universal format, recommended)
+          - **AppImage (ARM64)**: \`CrawBot-*-linux-arm64.AppImage\`
+          - **Debian/Ubuntu (x64)**: \`CrawBot-*-linux-amd64.deb\`
+          - **Debian/Ubuntu (ARM64)**: \`CrawBot-*-linux-arm64.deb\`
+          - **RPM (x64)**: \`CrawBot-*-linux-x86_64.rpm\`
+
+          ### ⚠️ Installation Notes
+
+          - **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences → Security & Privacy to allow the app to run
+          - **Windows**: SmartScreen may block the app. Click "More info" → "Run anyway" to proceed
+          - **Linux**: AppImage requires executable permission: \`chmod +x CrawBot-*.AppImage\`
+
+          ---
+
+          💬 Found an issue? Please submit an [Issue](https://github.com/${repo}/issues)
+          `;
+
+            if (prevTag) {
+              body += `\n\n**Full Changelog**: https://github.com/${repo}/compare/${prevTag}...${tag}\n`;
+            }
+
+            // Remove leading whitespace from template literal lines (caused by YAML indentation)
+            body = body.split("\n").map(l => l.replace(/^          /, "")).join("\n");
+
+            fs.writeFileSync("/tmp/release-body.md", body);
+          '
 
           echo "=== Release body ==="
-          cat "$BODY"
+          cat /tmp/release-body.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
