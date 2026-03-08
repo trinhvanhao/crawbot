@@ -1,0 +1,6 @@
+services:
+  crawbot-landing:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:80"

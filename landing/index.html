@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrawBot - Personal Agentic AI Assistant</title>
+  <meta name="description" content="CrawBot is your Personal Agentic AI Assistant powered by OpenClaw. Chat with AI agents, automate tasks, connect messaging channels, and extend with skills.">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #fb3d0b;
+      --primary-light: #ff6b3d;
+      --primary-dark: #d42f00;
+      --primary-glow: rgba(251, 61, 11, 0.3);
+      --bg-deep: #0a0a0f;
+      --bg-card: #111119;
+      --bg-card-hover: #1a1a25;
+      --bg-surface: #16161f;
+      --text-primary: #f0f0f5;
+      --text-secondary: #9595a8;
+      --text-muted: #5f5f73;
+      --border: #2a2a3a;
+      --border-hover: #3a3a50;
+      --gradient-hero: linear-gradient(135deg, #0a0a0f 0%, #1a0f0a 50%, #0a0a0f 100%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Utility */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .section { padding: 120px 0; position: relative; }
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      letter-spacing: -0.03em;
+    }
+    .section-subtitle {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    /* Ambient grid background */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(251, 61, 11, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(251, 61, 11, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      backdrop-filter: blur(20px);
+      background: rgba(10, 10, 15, 0.8);
+      border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+      transition: all 0.3s;
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-weight: 900;
+      font-size: 1.4rem;
+      letter-spacing: -0.02em;
+    }
+    .nav-logo img { height: 40px; width: 40px; border-radius: 10px; filter: drop-shadow(0 0 8px var(--primary-glow)); }
+    .nav-logo .brand-name {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.25s;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 0 30px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btn-primary:hover {
+      background: var(--primary-light);
+      box-shadow: 0 0 50px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--primary);
+      padding: 12px 20px;
+    }
+    .btn-ghost:hover { background: rgba(251, 61, 11, 0.1); }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      background: var(--gradient-hero);
+      position: relative;
+      overflow: hidden;
+      padding-top: 80px;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(251, 61, 11, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: linear-gradient(to top, var(--bg-deep), transparent);
+      pointer-events: none;
+    }
+    .hero-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-text h1 {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      margin-bottom: 24px;
+    }
+    .hero-text h1 .highlight {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-text p {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+      max-width: 480px;
+      line-height: 1.7;
+    }
+    .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+    .hero-visual {
+      position: relative;
+      display: flex;
+      justify-content: center;
+    }
+    .hero-screenshot {
+      width: 100%;
+      max-width: 560px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 60px var(--primary-glow);
+      transition: transform 0.4s;
+    }
+    .hero-screenshot:hover { transform: scale(1.02); }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(251, 61, 11, 0.1);
+      border: 1px solid rgba(251, 61, 11, 0.2);
+      border-radius: 100px;
+      font-size: 0.85rem;
+      color: var(--primary-light);
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+    .hero-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .hero-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      filter: drop-shadow(0 0 20px var(--primary-glow));
+      border: 2px solid rgba(251, 61, 11, 0.3);
+    }
+    .hero-brand-name {
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light), #ffad6b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px var(--primary-glow));
+      line-height: 1;
+    }
+    .hero-badge .dot {
+      width: 8px; height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 64px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-hover);
+      background: var(--bg-card-hover);
+      transform: translateY(-4px);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      background: rgba(251, 61, 11, 0.1);
+      border: 1px solid rgba(251, 61, 11, 0.15);
+    }
+    .feature-card h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    /* Showcase */
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 64px;
+    }
+    .showcase-item {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      transition: all 0.3s;
+    }
+    .showcase-item:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .showcase-item img {
+      width: 100%;
+      display: block;
+    }
+    .showcase-item .caption {
+      padding: 20px 24px;
+    }
+    .showcase-item .caption h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .showcase-item .caption p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    /* Download */
+    #download { background: var(--bg-deep); }
+    .download-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+    .download-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .download-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 30px var(--primary-glow);
+    }
+    .download-card .os-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .download-card h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+    .download-card p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; }
+    .download-card .btn { width: 100%; justify-content: center; }
+    .download-card .architectures {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .download-card .arch-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .download-card .arch-tag:hover {
+      border-color: var(--primary);
+      color: var(--primary-light);
+    }
+    .download-card.recommended {
+      border-color: var(--primary);
+      box-shadow: 0 0 30px rgba(251, 61, 11, 0.15);
+    }
+    .download-card.recommended::after {
+      content: 'Recommended for you';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 12px;
+      border-radius: 10px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Guide */
+    #guide { background: var(--bg-surface); }
+    .guide-steps {
+      margin-top: 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 80px;
+    }
+    .guide-step {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .guide-step.reverse { direction: rtl; }
+    .guide-step.reverse > * { direction: ltr; }
+    .step-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.15em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .step-number::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--primary), transparent);
+      max-width: 100px;
+    }
+    .step-content h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .step-content p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .step-content .substeps {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .step-content .substeps li {
+      display: flex;
+      gap: 12px;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .step-content .substeps li .check {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 6px;
+      background: rgba(251, 61, 11, 0.12);
+      border: 1px solid rgba(251, 61, 11, 0.25);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--primary);
+      margin-top: 3px;
+    }
+    .step-content .substeps li span:not(.check) {
+      flex: 1;
+      min-width: 0;
+    }
+    .step-visual {
+      display: flex;
+      justify-content: center;
+    }
+    .step-visual img {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    /* Install tabs */
+    .install-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-deep);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+    .install-tab {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+    }
+    .install-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+    .install-panel { display: none; }
+    .install-panel.active { display: block; }
+    .install-code {
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.8;
+    }
+    .install-code .comment { color: var(--text-muted); }
+    .install-code .cmd { color: var(--primary-light); }
+
+    /* Footer */
+    footer {
+      padding: 60px 0 40px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-deep);
+    }
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-content p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--primary); }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .hero-content { grid-template-columns: 1fr; gap: 48px; }
+      .hero-visual { order: -1; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .guide-step, .guide-step.reverse { grid-template-columns: 1fr; direction: ltr; }
+      .guide-step.reverse > * { direction: ltr; }
+      .step-visual { order: -1; }
+    }
+    @media (max-width: 768px) {
+      .section { padding: 80px 0; }
+      .features-grid { grid-template-columns: 1fr; }
+      .download-cards { grid-template-columns: 1fr; }
+      .showcase-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .hero-buttons { flex-direction: column; }
+      .btn { width: 100%; justify-content: center; }
+    }
+
+    /* Animations */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Glow line separator */
+    .glow-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0.3;
+      margin: 0 auto;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <img src="assets/icon-512.png" alt="CrawBot Logo">
+        <span class="brand-name">CrawBot</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#showcase">Showcase</a>
+        <a href="#download">Download</a>
+        <a href="#guide">Get Started</a>
+        <a href="https://github.com/Neurons-AI/crawbot" class="btn btn-ghost" target="_blank">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-text">
+          <div class="hero-badge">
+            <span class="dot"></span>
+            Open Source &middot; v2026.3
+          </div>
+          <div class="hero-brand">
+            <img src="assets/icon-512.png" alt="CrawBot" class="hero-logo">
+            <span class="hero-brand-name">CrawBot</span>
+          </div>
+          <h1>
+            Personal Agentic<br>
+            <span class="highlight">AI Assistant</span>
+          </h1>
+          <p>
+            <strong>CrawBot</strong> is your personal AI agent that lives on your desktop.
+            Chat, automate tasks, connect messaging channels, and extend capabilities
+            with 50+ skills &mdash; all through a beautiful interface powered by OpenClaw.
+          </p>
+          <div class="hero-buttons">
+            <a href="#download" class="btn btn-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download for Free
+            </a>
+            <a href="#guide" class="btn btn-secondary">
+              Get Started Guide
+            </a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <img src="assets/screenshots/app-chat.png" alt="CrawBot Chat Interface" class="hero-screenshot">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="fade-in">
+        <span class="section-label">Features</span>
+        <h2 class="section-title">Everything you need in your<br><span style="color: var(--primary);">Personal Agentic AI Assistant</span></h2>
+        <p class="section-subtitle">
+          Built on OpenClaw, <strong>CrawBot</strong> delivers a full-featured AI agent experience
+          with an intuitive desktop interface.
+        </p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x1f4ac;</div>
+          <h3>Intelligent Chat</h3>
+          <p>Conversational AI with streaming responses, session management, and multi-model support. Ask questions, write code, brainstorm ideas.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x1f527;</div>
+          <h3>50+ Built-in Skills</h3>
+          <p>From Apple Notes to 1Password, your agent comes loaded with skills to interact with your apps and services out of the box.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x1f4e1;</div>
+          <h3>Messaging Channels</h3>
+          <p>Connect Telegram, Discord, WhatsApp, Feishu/Lark, and Zalo. Your AI agent answers on your behalf across platforms.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x23f0;</div>
+          <h3>Scheduled Tasks</h3>
+          <p>Automate recurring AI workflows with cron-style scheduling. Run queries, send messages, or perform actions on a timer.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x1f310;</div>
+          <h3>Multi-Provider</h3>
+          <p>Use Google Gemini, Anthropic Claude, OpenAI, Ollama, OpenRouter, and more. Switch models anytime with OAuth or API key auth.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">&#x1f512;</div>
+          <h3>Private & Secure</h3>
+          <p>Runs locally on your machine. API keys stored in system keychain. No telemetry, no data collection. Your conversations stay yours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- Showcase -->
+  <section class="section" id="showcase">
+    <div class="container">
+      <div class="fade-in">
+        <span class="section-label">Showcase</span>
+        <h2 class="section-title">See CrawBot in action</h2>
+        <p class="section-subtitle">A clean, modern interface designed for productivity and ease of use.</p>
+      </div>
+      <div class="showcase-grid">
+        <div class="showcase-item fade-in">
+          <img src="assets/screenshots/app-dashboard.png" alt="Dashboard">
+          <div class="caption">
+            <h4>Dashboard</h4>
+            <p>Monitor gateway status, channels, skills, and uptime at a glance.</p>
+          </div>
+        </div>
+        <div class="showcase-item fade-in">
+          <img src="assets/screenshots/app-skills.png" alt="Skills Manager">
+          <div class="caption">
+            <h4>Skills Manager</h4>
+            <p>Browse, search, and toggle 50+ built-in skills. Install more from the marketplace.</p>
+          </div>
+        </div>
+        <div class="showcase-item fade-in">
+          <img src="assets/screenshots/app-channels.png" alt="Messaging Channels">
+          <div class="caption">
+            <h4>Messaging Channels</h4>
+            <p>Connect Telegram, Discord, WhatsApp, and more in just a few clicks.</p>
+          </div>
+        </div>
+        <div class="showcase-item fade-in">
+          <img src="assets/screenshots/app-cron.png" alt="Scheduled Tasks">
+          <div class="caption">
+            <h4>Scheduled Tasks</h4>
+            <p>Create and manage automated AI workflows with cron-based scheduling.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- Download -->
+  <section class="section" id="download">
+    <div class="container">
+      <div class="fade-in" style="text-align: center;">
+        <span class="section-label">Download</span>
+        <h2 class="section-title">Get <span style="color: var(--primary);">CrawBot</span> for your platform</h2>
+        <p class="section-subtitle" style="margin: 0 auto;">Your Personal Agentic AI Assistant. Free and open source.</p>
+      </div>
+      <div class="download-cards">
+        <div class="download-card fade-in" id="dl-mac">
+          <span class="os-icon">&#x1f34e;</span>
+          <h3>macOS</h3>
+          <p>macOS 12 Monterey or later</p>
+          <a id="dl-mac-btn" href="https://github.com/Neurons-AI/crawbot/releases/latest" class="btn btn-primary">Download .dmg</a>
+          <div class="architectures">
+            <a href="#" class="arch-tag" id="dl-mac-arm64">Apple Silicon</a>
+            <a href="#" class="arch-tag" id="dl-mac-x64">Intel x64</a>
+          </div>
+        </div>
+        <div class="download-card fade-in" id="dl-win">
+          <span class="os-icon">&#x1fa9f;</span>
+          <h3>Windows</h3>
+          <p>Windows 10 or later</p>
+          <a id="dl-win-btn" href="https://github.com/Neurons-AI/crawbot/releases/latest" class="btn btn-primary">Download .exe</a>
+          <div class="architectures">
+            <a href="#" class="arch-tag" id="dl-win-x64">x64</a>
+            <a href="#" class="arch-tag" id="dl-win-arm64">ARM64</a>
+          </div>
+        </div>
+        <div class="download-card fade-in" id="dl-linux">
+          <span class="os-icon">&#x1f427;</span>
+          <h3>Linux</h3>
+          <p>Ubuntu 20.04+, Fedora 36+, Debian 11+</p>
+          <a id="dl-linux-btn" href="https://github.com/Neurons-AI/crawbot/releases/latest" class="btn btn-primary">Download .AppImage</a>
+          <div class="architectures">
+            <a href="#" class="arch-tag" id="dl-linux-deb">x64 .deb</a>
+            <a href="#" class="arch-tag" id="dl-linux-rpm">x64 .rpm</a>
+            <a href="#" class="arch-tag" id="dl-linux-arm64">ARM64</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- Getting Started Guide -->
+  <section class="section" id="guide">
+    <div class="container">
+      <div class="fade-in">
+        <span class="section-label">Getting Started</span>
+        <h2 class="section-title">From zero to AI agent in 5 steps</h2>
+        <p class="section-subtitle">Follow these steps to download, install, and start chatting with your AI agent.</p>
+      </div>
+
+      <div class="guide-steps">
+
+        <!-- Step 1: Download & Install -->
+        <div class="guide-step fade-in">
+          <div class="step-content">
+            <div class="step-number">STEP 01</div>
+            <h3>Download & Install</h3>
+            <p>Grab the installer for your operating system and run the setup.</p>
+
+            <div class="install-tabs">
+              <button class="install-tab active" onclick="switchTab('macos')">macOS</button>
+              <button class="install-tab" onclick="switchTab('windows')">Windows</button>
+              <button class="install-tab" onclick="switchTab('linux')">Linux</button>
+            </div>
+
+            <div id="panel-macos" class="install-panel active">
+              <div class="install-code">
+                <span class="comment"># 1. Download the .dmg file from the download section</span><br>
+                <span class="comment"># 2. Open the .dmg file</span><br>
+                <span class="comment"># 3. Drag CrawBot to Applications folder</span><br>
+                <span class="comment"># 4. First launch: Right-click > Open (bypasses Gatekeeper)</span><br><br>
+                <span class="comment"># Or install via Homebrew (coming soon):</span><br>
+                <span class="cmd">brew install --cask crawbot</span>
+              </div>
+            </div>
+
+            <div id="panel-windows" class="install-panel">
+              <div class="install-code">
+                <span class="comment"># 1. Download CrawBot-Setup.exe</span><br>
+                <span class="comment"># 2. Run the installer</span><br>
+                <span class="comment"># 3. If SmartScreen warning appears:</span><br>
+                <span class="comment">#    Click "More info" > "Run anyway"</span><br>
+                <span class="comment"># 4. Follow the installation wizard</span><br>
+                <span class="comment"># 5. Launch CrawBot from Start Menu</span>
+              </div>
+            </div>
+
+            <div id="panel-linux" class="install-panel">
+              <div class="install-code">
+                <span class="comment"># AppImage (universal):</span><br>
+                <span class="cmd">chmod +x CrawBot-*.AppImage</span><br>
+                <span class="cmd">./CrawBot-*.AppImage</span><br><br>
+                <span class="comment"># Debian/Ubuntu:</span><br>
+                <span class="cmd">sudo dpkg -i crawbot_*.deb</span><br><br>
+                <span class="comment"># Fedora/RHEL:</span><br>
+                <span class="cmd">sudo rpm -i crawbot-*.rpm</span>
+              </div>
+            </div>
+          </div>
+          <div class="step-visual">
+            <img src="assets/screenshots/setup-step1-welcome.png" alt="CrawBot Welcome Setup Wizard">
+          </div>
+        </div>
+
+        <!-- Step 2: Environment Check -->
+        <div class="guide-step reverse fade-in">
+          <div class="step-content">
+            <div class="step-number">STEP 02</div>
+            <h3>Automatic Environment Check</h3>
+            <p>After launching, CrawBot automatically verifies your system. It checks Node.js, Python, CLI tools (Gemini CLI, Claude Code, Codex CLI), and the OpenClaw gateway.</p>
+            <ul class="substeps">
+              <li>
+                <span class="check">1</span>
+                <span>CrawBot detects your <strong>Node.js runtime</strong> and Python version</span>
+              </li>
+              <li>
+                <span class="check">2</span>
+                <span>Installs <strong>CLI tools</strong> for OAuth login (Gemini CLI, Claude Code, Codex CLI)</span>
+              </li>
+              <li>
+                <span class="check">3</span>
+                <span>Verifies <strong>build tools</strong> for native modules (optional)</span>
+              </li>
+              <li>
+                <span class="check">4</span>
+                <span>Starts the <strong>OpenClaw Gateway</strong> service on port 18789</span>
+              </li>
+              <li>
+                <span class="check">5</span>
+                <span>All green? Click <strong>Next</strong> to continue</span>
+              </li>
+            </ul>
+          </div>
+          <div class="step-visual">
+            <img src="assets/screenshots/setup-step2-done.png" alt="CrawBot Environment Check">
+          </div>
+        </div>
+
+        <!-- Step 3: Setup AI Provider -->
+        <div class="guide-step fade-in">
+          <div class="step-content">
+            <div class="step-number">STEP 03</div>
+            <h3>Connect an AI Provider (Google Gemini)</h3>
+            <p>Choose your AI provider. The easiest way to start is with <strong>Google Gemini OAuth</strong> &mdash; no API key needed, just sign in with your Google account.</p>
+            <ul class="substeps">
+              <li>
+                <span class="check">1</span>
+                <span>Select <strong>Google &mdash; Gemini</strong> from the Model Provider dropdown</span>
+              </li>
+              <li>
+                <span class="check">2</span>
+                <span>Choose a default model (e.g., <strong>gemini-2.5-flash</strong>)</span>
+              </li>
+              <li>
+                <span class="check">3</span>
+                <span>Click <strong>Sign in with Google</strong> to authenticate via OAuth</span>
+              </li>
+              <li>
+                <span class="check">4</span>
+                <span>Authorize in your browser &mdash; the provider shows <strong style="color: #22c55e;">OAuth Active</strong></span>
+              </li>
+              <li>
+                <span class="check">5</span>
+                <span>You can add more providers later (Claude, GPT-4, Ollama) in Settings</span>
+              </li>
+            </ul>
+          </div>
+          <div class="step-visual">
+            <img src="assets/screenshots/setup-step3-providers-list.png" alt="CrawBot AI Provider Selection">
+          </div>
+        </div>
+
+        <!-- Step 4: Start Chatting -->
+        <div class="guide-step reverse fade-in">
+          <div class="step-content">
+            <div class="step-number">STEP 04</div>
+            <h3>Start Chatting with Your Agent</h3>
+            <p>Setup complete! Navigate to the Chat page and start your first conversation. Your AI agent is ready to help.</p>
+            <ul class="substeps">
+              <li>
+                <span class="check">1</span>
+                <span>Click <strong>Chat</strong> in the sidebar to open the chat interface</span>
+              </li>
+              <li>
+                <span class="check">2</span>
+                <span>Select your agent and model from the top toolbar</span>
+              </li>
+              <li>
+                <span class="check">3</span>
+                <span>Type your message and press <strong>Enter</strong> to send</span>
+              </li>
+              <li>
+                <span class="check">4</span>
+                <span>The agent can read files, think step-by-step, and use installed skills</span>
+              </li>
+              <li>
+                <span class="check">5</span>
+                <span>Use <strong>+</strong> to start new sessions, or browse history with the clock icon</span>
+              </li>
+            </ul>
+          </div>
+          <div class="step-visual">
+            <img src="assets/screenshots/app-chat.png" alt="CrawBot Chat in Action">
+          </div>
+        </div>
+
+        <!-- Step 5: Explore More -->
+        <div class="guide-step fade-in">
+          <div class="step-content">
+            <div class="step-number">STEP 05</div>
+            <h3>Explore Skills, Channels & Automation</h3>
+            <p>Take your agent further by exploring built-in skills, connecting your messaging apps, and automating workflows.</p>
+            <ul class="substeps">
+              <li>
+                <span class="check">&#x2713;</span>
+                <span>Browse <strong>50+ skills</strong> in the Skills page &mdash; toggle what your agent can do</span>
+              </li>
+              <li>
+                <span class="check">&#x2713;</span>
+                <span>Connect <strong>Telegram, Discord, WhatsApp, Zalo</strong> in the Channels page</span>
+              </li>
+              <li>
+                <span class="check">&#x2713;</span>
+                <span>Set up <strong>Scheduled Tasks</strong> to automate recurring queries</span>
+              </li>
+              <li>
+                <span class="check">&#x2713;</span>
+                <span>Monitor everything from the <strong>Dashboard</strong> &mdash; gateway, channels, skills, uptime</span>
+              </li>
+            </ul>
+          </div>
+          <div class="step-visual">
+            <img src="assets/screenshots/app-dashboard.png" alt="CrawBot Dashboard">
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="text-align: center; padding: 100px 0;">
+    <div class="container fade-in">
+      <h2 class="section-title">Ready to meet <span style="color: var(--primary);">CrawBot</span>?</h2>
+      <p class="section-subtitle" style="margin: 0 auto 40px;">
+        Your Personal Agentic AI Assistant. Free, open source, and private.
+      </p>
+      <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+        <a href="#download" class="btn btn-primary" style="font-size: 1.1rem; padding: 16px 36px;">
+          Download <strong>CrawBot</strong>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="https://github.com/Neurons-AI/crawbot" class="btn btn-secondary" style="font-size: 1.1rem; padding: 16px 36px;" target="_blank">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <p><strong style="color: var(--primary);">CrawBot</strong> &mdash; Personal Agentic AI Assistant &middot; &copy; 2026 Neurons AI &middot; MIT License</p>
+        <div class="footer-links">
+          <a href="https://github.com/Neurons-AI/crawbot" target="_blank">GitHub</a>
+          <a href="https://github.com/Neurons-AI/crawbot/issues" target="_blank">Issues</a>
+          <a href="https://github.com/Neurons-AI/crawbot/releases" target="_blank">Releases</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Tab switching for install instructions
+    function switchTab(os) {
+      document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('panel-' + os).classList.add('active');
+    }
+
+    // Scroll-based fade-in animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // OS + architecture detection and download links
+    (function() {
+      const REPO = 'Neurons-AI/crawbot';
+      const API_URL = 'https://api.github.com/repos/' + REPO + '/releases/latest';
+
+      // Detect user OS
+      function detectOS() {
+        const ua = navigator.userAgent.toLowerCase();
+        const platform = navigator.platform?.toLowerCase() || '';
+        if (ua.includes('mac') || platform.includes('mac')) return 'mac';
+        if (ua.includes('win') || platform.includes('win')) return 'win';
+        if (ua.includes('linux') || platform.includes('linux')) return 'linux';
+        return null;
+      }
+
+      // Detect CPU architecture using multiple methods
+      async function detectArch() {
+        // Method 1: High-entropy UA data (Chrome 90+, Edge 90+)
+        if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+          try {
+            const data = await navigator.userAgentData.getHighEntropyValues(['architecture', 'bitness']);
+            const arch = (data.architecture || '').toLowerCase();
+            if (arch === 'arm') return 'arm64';
+            return 'x64';
+          } catch (e) { /* fall through */ }
+        }
+
+        // Method 2: Check navigator.platform for Apple Silicon hints
+        const platform = (navigator.platform || '').toLowerCase();
+        if (platform === 'macarm' || platform.includes('aarch64')) return 'arm64';
+
+        // Method 3: User agent string (works on some mobile/tablet browsers)
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.includes('arm64') || ua.includes('aarch64') || ua.includes('armv8')) return 'arm64';
+
+        // Method 4: WebGL renderer check for Apple Silicon Macs
+        // Apple Silicon Macs report "Apple" GPU in WebGL
+        if (detectOS() === 'mac') {
+          try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+              const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+              if (dbg) {
+                const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL).toLowerCase();
+                // Apple GPU = Apple Silicon; Intel/AMD = Intel Mac
+                if (renderer.includes('apple') && !renderer.includes('intel')) return 'arm64';
+                if (renderer.includes('intel') || renderer.includes('amd')) return 'x64';
+              }
+            }
+          } catch (e) { /* fall through */ }
+        }
+
+        // Method 5: Windows ARM detection via user agent
+        if (detectOS() === 'win' && ua.includes('arm')) return 'arm64';
+
+        return 'x64';
+      }
+
+      // Arch labels for button text
+      const archLabels = {
+        mac: { arm64: 'Apple Silicon', x64: 'Intel' },
+        win: { arm64: 'ARM64', x64: 'x64' },
+        linux: { arm64: 'ARM64', x64: 'x64' },
+      };
+
+      async function init() {
+        const userOS = detectOS();
+        const userArch = await detectArch();
+
+        // Highlight detected OS card
+        if (userOS) {
+          const card = document.getElementById('dl-' + userOS);
+          if (card) card.classList.add('recommended');
+        }
+
+        // Update main button text with detected arch
+        if (userOS && archLabels[userOS]) {
+          const btn = document.getElementById('dl-' + userOS + '-btn');
+          if (btn) {
+            const label = archLabels[userOS][userArch] || userArch;
+            const ext = { mac: '.dmg', win: '.exe', linux: '.AppImage' }[userOS];
+            btn.textContent = 'Download ' + ext + ' (' + label + ')';
+          }
+        }
+
+        // Fetch latest release and populate download links
+        try {
+          const resp = await fetch(API_URL);
+          const release = await resp.json();
+          const assets = release.assets || [];
+          function findAsset(pattern) {
+            return assets.find(a => pattern.test(a.name));
+          }
+
+          // macOS
+          const macArmDmg = findAsset(/arm64.*\.dmg$/i);
+          const macX64Dmg = findAsset(/x64.*\.dmg$/i) || findAsset(/intel.*\.dmg$/i);
+          if (macArmDmg) document.getElementById('dl-mac-arm64').href = macArmDmg.browser_download_url;
+          if (macX64Dmg) document.getElementById('dl-mac-x64').href = macX64Dmg.browser_download_url;
+          const macDefault = (userArch === 'x64' && macX64Dmg) ? macX64Dmg : (macArmDmg || macX64Dmg);
+          if (macDefault) document.getElementById('dl-mac-btn').href = macDefault.browser_download_url;
+
+          // Windows
+          const winX64 = findAsset(/x64.*\.exe$/i) || findAsset(/\.exe$/i);
+          const winArm64 = findAsset(/arm64.*\.exe$/i);
+          if (winX64) document.getElementById('dl-win-x64').href = winX64.browser_download_url;
+          if (winArm64) document.getElementById('dl-win-arm64').href = winArm64.browser_download_url;
+          const winDefault = (userArch === 'arm64' && winArm64) ? winArm64 : (winX64 || winArm64);
+          if (winDefault) document.getElementById('dl-win-btn').href = winDefault.browser_download_url;
+
+          // Linux
+          const linuxAppImageX64 = findAsset(/x86_64.*\.AppImage$/i) || findAsset(/\.AppImage$/i);
+          const linuxDebX64 = findAsset(/amd64.*\.deb$/i) || findAsset(/x64.*\.deb$/i);
+          const linuxRpmX64 = findAsset(/x86_64.*\.rpm$/i) || findAsset(/x64.*\.rpm$/i);
+          const linuxArm64AppImage = findAsset(/arm64.*\.AppImage$/i) || findAsset(/aarch64.*\.AppImage$/i);
+          if (linuxDebX64) document.getElementById('dl-linux-deb').href = linuxDebX64.browser_download_url;
+          if (linuxRpmX64) document.getElementById('dl-linux-rpm').href = linuxRpmX64.browser_download_url;
+          if (linuxArm64AppImage) document.getElementById('dl-linux-arm64').href = linuxArm64AppImage.browser_download_url;
+          const linuxDefault = (userArch === 'arm64' && linuxArm64AppImage) ? linuxArm64AppImage : (linuxAppImageX64 || linuxArm64AppImage);
+          if (linuxDefault) document.getElementById('dl-linux-btn').href = linuxDefault.browser_download_url;
+        } catch (e) {
+          // On error, all links fall back to the releases page
+        }
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
