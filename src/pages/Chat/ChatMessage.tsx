@@ -369,7 +369,14 @@ function MessageBubble({
               },
               a({ href, children }) {
                 return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  <a
+                    href={href}
+                    className="text-primary hover:underline cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (href) window.electron?.openExternal?.(href);
+                    }}
+                  >
                     {children}
                   </a>
                 );

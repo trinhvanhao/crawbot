@@ -12,7 +12,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { shell } from 'electron';
+import { openExternalInDefaultProfile } from './open-external';
 import { logger } from './logger';
 
 // ── OAuth constants (matches openclaw/extensions/openai-codex) ──
@@ -243,7 +243,7 @@ export async function runOpenAICodexOAuthFlow(): Promise<{
   // Small delay to ensure server is listening before opening browser
   await new Promise((r) => setTimeout(r, 300));
   logger.info('Opening browser for OpenAI Codex OAuth consent');
-  await shell.openExternal(authUrl);
+  await openExternalInDefaultProfile(authUrl);
 
   // 4. Wait for callback
   const { code, server } = await callbackPromise;

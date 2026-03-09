@@ -2,7 +2,8 @@
  * Application Menu Configuration
  * Creates the native application menu for macOS/Windows/Linux
  */
-import { Menu, app, shell, BrowserWindow } from 'electron';
+import { Menu, app, BrowserWindow } from 'electron';
+import { openExternalInDefaultProfile } from '../utils/open-external';
 
 /**
  * Create application menu
@@ -176,20 +177,20 @@ export function createMenu(): void {
         {
           label: 'Documentation',
           click: async () => {
-            await shell.openExternal('https://crawbot.net');
+            await openExternalInDefaultProfile('https://crawbot.net');
           },
         },
         {
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/Neurons-ai/CrawBot/issues');
+            await openExternalInDefaultProfile('https://github.com/Neurons-ai/CrawBot/issues');
           },
         },
         { type: 'separator' },
         {
           label: 'OpenClaw Documentation',
           click: async () => {
-            await shell.openExternal('https://docs.openclaw.ai');
+            await openExternalInDefaultProfile('https://docs.openclaw.ai');
           },
         },
       ],

@@ -13,7 +13,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync, mkd
 import { createServer, type Server } from 'node:http';
 import { delimiter, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import { shell } from 'electron';
+import { openExternalInDefaultProfile } from './open-external';
 import { logger } from './logger';
 
 // ── OAuth constants (same as openclaw/extensions/google-gemini-cli-auth) ──
@@ -580,7 +580,7 @@ export async function runGoogleOAuthFlow(): Promise<{
   // Small delay to ensure server is listening before opening browser
   await new Promise((r) => setTimeout(r, 300));
   logger.info('Opening browser for Google OAuth consent');
-  await shell.openExternal(authUrl);
+  await openExternalInDefaultProfile(authUrl);
 
   // 5. Wait for callback
   const { code, server } = await callbackPromise;

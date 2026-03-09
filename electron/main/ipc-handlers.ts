@@ -8,6 +8,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join, extname, basename, dirname, normalize, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
+import { openExternalInDefaultProfile } from '../utils/open-external';
 import { GatewayManager } from '../gateway/manager';
 import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUninstallParams } from '../gateway/clawhub';
 import {
@@ -97,6 +98,7 @@ import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { zaloUserLoginManager } from '../utils/zalouser-login';
 import { exportConfigBundle, importConfigBundle, validateConfigBundle } from '../utils/config-bundle';
 import { getProviderConfig, getProviderDefaultModel } from '../utils/provider-registry';
+import { installExtension, getExtensionStatus, updateExtensionConfig, getExtensionInstallDir } from '../utils/browser-extension';
 import AdmZip from 'adm-zip';
 import * as tar from 'tar';
 
@@ -170,6 +172,9 @@ export function registerIpcHandlers(
 
   // Skill import handler (extract zip/tar.gz to ~/.openclaw/skills/ and enable)
   registerSkillImportHandler(gatewayManager);
+
+  // Browser extension handlers
+  registerBrowserExtensionHandlers(gatewayManager);
 }
 
 /**
@@ -2436,9 +2441,9 @@ async function validateOpenRouterKey(
  * Shell-related IPC handlers
  */
 function registerShellHandlers(): void {
-  // Open external URL
+  // Open external URL in the user's default browser profile (not OpenClaw's)
   ipcMain.handle('shell:openExternal', async (_, url: string) => {
-    await shell.openExternal(url);
+    await openExternalInDefaultProfile(url);
   });
 
   // Open path in file explorer
@@ -3406,4 +3411,55 @@ function parseSlashCommandsMd(content: string): ParsedSlashCommand[] {
   }
 
   return commands;
+}
+
+// ── Browser Extension Handlers ──────────────────────────────────────────────
+
+function registerBrowserExtensionHandlers(gatewayManager: GatewayManager): void {
+  // Install extension files + write config with current token
+  ipcMain.handle('extension:install', async () => {
+    try {
+      const token = await getSetting('gatewayToken');
+      const status = gatewayManager.getStatus();
+      const port = status.port || 18789;
+      const result = installExtension(token, port);
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return { success: true, path: result.path, relayPort: port + 3 };
+    } catch (error) {
+      logger.error(`[extension:install] ${String(error)}`);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Get extension status (installed? Chrome found?)
+  ipcMain.handle('extension:status', async () => {
+    try {
+      return { success: true, ...getExtensionStatus() };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Open extension directory in file manager
+  ipcMain.handle('extension:openDir', async () => {
+    try {
+      const dir = getExtensionInstallDir();
+      await shell.openPath(dir);
+      return { success: true, path: dir };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Auto-update extension config when gateway restarts (token/port may change)
+  gatewayManager.on('status', (status) => {
+    if (status.state === 'running') {
+      getSetting('gatewayToken').then(token => {
+        const port = status.port || 18789;
+        updateExtensionConfig(token, port);
+      }).catch(() => { /* ignore */ });
+    }
+  });
 }

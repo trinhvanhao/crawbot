@@ -11,7 +11,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { shell } from 'electron';
+import { openExternalInDefaultProfile } from './open-external';
 import { logger } from './logger';
 
 // ── OAuth constants (extracted from Claude Code CLI v2.1.69 prod config) ──
@@ -282,7 +282,7 @@ export async function runClaudeOAuthFlow(): Promise<{
 
     // 4. Open browser for consent
     logger.info('[claude-oauth] Opening browser for Anthropic OAuth consent');
-    await shell.openExternal(authUrl);
+    await openExternalInDefaultProfile(authUrl);
 
     // 5. Wait for callback
     const { code } = await waitForCallback(server, state, CALLBACK_TIMEOUT_MS);

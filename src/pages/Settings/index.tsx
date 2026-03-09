@@ -16,6 +16,9 @@ import {
   FileText,
   Archive,
   Upload,
+  Globe,
+  FolderOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,6 +86,12 @@ export function Settings() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [includeApiKeys, setIncludeApiKeys] = useState(false);
+  const [installingExtension, setInstallingExtension] = useState(false);
+  const [extensionStatus, setExtensionStatus] = useState<{
+    installed: boolean;
+    path: string;
+    chromeFound: boolean;
+  } | null>(null);
 
   const handleShowLogs = async () => {
     try {
@@ -283,6 +292,50 @@ export function Settings() {
     }
   };
 
+  // Load extension status on mount
+  useEffect(() => {
+    window.electron.ipcRenderer.invoke('extension:status').then((result: unknown) => {
+      const r = result as { success: boolean; installed?: boolean; path?: string; chromeFound?: boolean };
+      if (r.success) {
+        setExtensionStatus({
+          installed: r.installed ?? false,
+          path: r.path ?? '',
+          chromeFound: r.chromeFound ?? false,
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleInstallExtension = async () => {
+    try {
+      setInstallingExtension(true);
+      const result = await window.electron.ipcRenderer.invoke('extension:install') as {
+        success: boolean;
+        path?: string;
+        relayPort?: number;
+        error?: string;
+      };
+      if (result.success) {
+        toast.success(`Browser extension installed to ${result.path}`);
+        setExtensionStatus(prev => prev ? { ...prev, installed: true } : prev);
+      } else {
+        toast.error(result.error || 'Failed to install extension');
+      }
+    } catch (error) {
+      toast.error(`Install failed: ${String(error)}`);
+    } finally {
+      setInstallingExtension(false);
+    }
+  };
+
+  const handleOpenExtensionDir = async () => {
+    try {
+      await window.electron.ipcRenderer.invoke('extension:openDir');
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="space-y-6 p-3 sm:p-6">
       <div>
@@ -467,6 +520,116 @@ export function Settings() {
             />
           </div>
 
+        </CardContent>
+      </Card>
+
+      {/* Browser Extension */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Browser Extension
+          </CardTitle>
+          <CardDescription>
+            Install the CrawBot Browser Relay extension to enable browser automation on your existing Chrome tabs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Extension Status</Label>
+              <p className="text-sm text-muted-foreground">
+                {extensionStatus?.installed
+                  ? 'Extension files installed. Load it in Chrome via chrome://extensions (Developer mode → Load unpacked).'
+                  : 'Click install to set up the extension with auto-configured gateway token.'}
+              </p>
+            </div>
+            <Badge variant={extensionStatus?.installed ? 'success' : 'secondary'}>
+              {extensionStatus?.installed ? 'Installed' : 'Not installed'}
+            </Badge>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant={extensionStatus?.installed ? 'outline' : 'default'}
+              onClick={handleInstallExtension}
+              disabled={installingExtension}
+            >
+              {extensionStatus?.installed ? (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {installingExtension
+                ? 'Installing...'
+                : extensionStatus?.installed
+                  ? 'Reinstall / Update'
+                  : 'Install Extension'}
+            </Button>
+            {extensionStatus?.installed && (
+              <Button variant="outline" onClick={handleOpenExtensionDir}>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Open Extension Folder
+              </Button>
+            )}
+          </div>
+
+          {extensionStatus?.installed && (
+            <details className="group">
+              <summary className="cursor-pointer text-sm font-medium text-primary hover:underline list-none flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                Setup &amp; Usage Guide
+                <span className="text-xs text-muted-foreground font-normal ml-1 group-open:hidden">(click to expand)</span>
+              </summary>
+              <div className="space-y-3 mt-3">
+                {/* Setup guide */}
+                <div className="text-xs text-muted-foreground space-y-1 p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium">1. Load extension in Chrome</p>
+                  <ol className="list-decimal ml-4 space-y-0.5">
+                    <li>Open <code className="text-xs">chrome://extensions</code> in Chrome</li>
+                    <li>Enable <strong>Developer mode</strong> (top-right toggle)</li>
+                    <li>Click <strong>Load unpacked</strong> and select the extension folder</li>
+                    <li>The extension auto-connects to CrawBot gateway — no manual config needed</li>
+                  </ol>
+                </div>
+
+                {/* How it works */}
+                <div className="text-xs text-muted-foreground space-y-1 p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium">2. How it works</p>
+                  <ul className="list-disc ml-4 space-y-0.5">
+                    <li>The extension automatically attaches to <strong>all browser tabs</strong> via Chrome DevTools Protocol (CDP)</li>
+                    <li>Full CDP domains enabled: Page, Runtime, DOM, Network, Input, Emulation, Overlay, Log, Target</li>
+                    <li>New tabs are attached automatically — no manual action needed</li>
+                    <li>The relay connects your browser to OpenClaw gateway so the AI agent can see and control web pages</li>
+                  </ul>
+                </div>
+
+                {/* How to prompt agent */}
+                <div className="text-xs text-muted-foreground space-y-1.5 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                  <p className="font-medium text-blue-600 dark:text-blue-400">3. Tell the agent to use browser</p>
+                  <p>Once the extension is loaded and gateway is running, ask the agent to interact with your browser. Example prompts:</p>
+                  <div className="space-y-1.5 mt-1">
+                    <div className="bg-background/60 rounded px-2.5 py-1.5 font-mono text-[11px] leading-relaxed">
+                      Go to google.com and search for &quot;OpenClaw AI&quot;
+                    </div>
+                    <div className="bg-background/60 rounded px-2.5 py-1.5 font-mono text-[11px] leading-relaxed">
+                      Open my current browser tab and summarize the page content
+                    </div>
+                    <div className="bg-background/60 rounded px-2.5 py-1.5 font-mono text-[11px] leading-relaxed">
+                      Fill in the login form with username &quot;demo&quot; and click submit
+                    </div>
+                    <div className="bg-background/60 rounded px-2.5 py-1.5 font-mono text-[11px] leading-relaxed">
+                      Take a screenshot of the current tab and describe what you see
+                    </div>
+                    <div className="bg-background/60 rounded px-2.5 py-1.5 font-mono text-[11px] leading-relaxed">
+                      Monitor the network requests on this page and list all API calls
+                    </div>
+                  </div>
+                  <p className="mt-1.5">The agent has a <strong>browser</strong> tool that works through this Chrome extension relay. You can also explicitly say &quot;use the browser tool&quot; in your prompt.</p>
+                </div>
+              </div>
+            </details>
+          )}
         </CardContent>
       </Card>
 

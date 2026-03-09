@@ -13,6 +13,7 @@ import { createMenu } from './menu';
 
 import { getAppUpdater, registerUpdateHandlers } from './updater';
 import { logger } from '../utils/logger';
+import { openExternalInDefaultProfile } from '../utils/open-external';
 import { warmupNetworkOptimization } from '../utils/uv-env';
 import { getSetting, setSetting } from '../utils/store';
 import { setAutoStart } from '../utils/autostart';
@@ -109,9 +110,9 @@ function createWindow(startMinimized = false): BrowserWindow {
     }
   });
 
-  // Handle external links
+  // Handle external links — use default profile to avoid OpenClaw's Chrome profile
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalInDefaultProfile(url);
     return { action: 'deny' };
   });
 
@@ -155,7 +156,7 @@ function createWindow(startMinimized = false): BrowserWindow {
       menuItems.push(
         {
           label: 'Open Link in Browser',
-          click: () => shell.openExternal(params.linkURL),
+          click: () => openExternalInDefaultProfile(params.linkURL),
         },
         {
           label: 'Copy Link Address',

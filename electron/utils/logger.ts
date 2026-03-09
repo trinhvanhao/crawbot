@@ -6,6 +6,10 @@ import { app } from 'electron';
 import { join } from 'path';
 import { existsSync, mkdirSync, appendFileSync, readFileSync, readdirSync, statSync } from 'fs';
 
+// Guard against EPIPE crashes when stdout/stderr pipe is broken
+process.stdout?.on?.('error', () => {});
+process.stderr?.on?.('error', () => {});
+
 /**
  * Log levels
  */

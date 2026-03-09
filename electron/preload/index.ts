@@ -198,6 +198,10 @@ const electronAPI = {
         'openclaw:getCliCommand',
         'openclaw:installCliMac',
         'openclaw:getSlashCommands',
+        // Browser extension
+        'extension:install',
+        'extension:status',
+        'extension:openDir',
       ];
 
       if (validChannels.includes(channel)) {
